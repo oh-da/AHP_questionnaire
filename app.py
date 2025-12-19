@@ -6,12 +6,15 @@ SOLID Design Principles Implementation
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Optional
+from datetime import datetime
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
 import openpyxl
 from io import BytesIO
 import json
+import os
 
 
 # ============================================================================
@@ -377,6 +380,58 @@ class ExportService(IExportService):
 
 
 # ============================================================================
+# PERSISTENCE SERVICE (Single Responsibility - Data persistence)
+# ============================================================================
+
+class PersistenceService:
+    """Handles saving questionnaire results to persistent storage."""
+
+    def __init__(self, results_file: str = "results.csv"):
+        self.results_file = results_file
+
+    def save_results(
+        self,
+        criteria: List[Criterion],
+        answers: Dict,
+        results: AHPResults
+    ) -> bool:
+        """Save questionnaire results to CSV file (append mode)."""
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Build row data
+            row_data = {
+                'timestamp': timestamp,
+                'consistency_ratio': results.cr,
+                'consistency_index': results.ci,
+                'lambda_max': results.lambda_max,
+                'is_consistent': results.is_consistent()
+            }
+
+            # Add weights for each criterion
+            for criterion in criteria:
+                row_data[f'weight_{criterion.name}'] = results.weights.get(criterion.name, 0)
+
+            # Add answers for each comparison
+            for key, value in answers.items():
+                row_data[f'answer_{key}'] = value
+
+            # Convert to DataFrame
+            df = pd.DataFrame([row_data])
+
+            # Append to file or create new file
+            if os.path.exists(self.results_file):
+                df.to_csv(self.results_file, mode='a', header=False, index=False)
+            else:
+                df.to_csv(self.results_file, mode='w', header=True, index=False)
+
+            return True
+        except Exception as e:
+            st.error(f"Error saving results: {e}")
+            return False
+
+
+# ============================================================================
 # UI COMPONENTS (Single Responsibility - UI rendering)
 # ============================================================================
 
@@ -562,11 +617,13 @@ class AHPQuestionnaireApp:
         self,
         data_source: IQuestionnaireDataSource,
         calculator: IAHPCalculator,
-        export_service: IExportService
+        export_service: IExportService,
+        persistence_service: PersistenceService
     ):
         self.data_source = data_source
         self.calculator = calculator
         self.export_service = export_service
+        self.persistence_service = persistence_service
         self.ui = UIRenderer()
 
     def initialize_session_state(self):
@@ -654,6 +711,15 @@ class AHPQuestionnaireApp:
             comparisons_dict
         )
 
+        # Save results to persistent storage (once per completion)
+        if 'results_saved' not in st.session_state:
+            if self.persistence_service.save_results(
+                st.session_state.criteria,
+                st.session_state.answers,
+                results
+            ):
+                st.session_state.results_saved = True
+
         # Render results
         criteria_names = [c.name for c in st.session_state.criteria]
         self.ui.render_results(results, criteria_names)
@@ -698,78 +764,22 @@ class AHPQuestionnaireApp:
         self.ui.render_header()
         self.initialize_session_state()
 
-        # File upload option
+        # Sidebar - display criteria information only
         with st.sidebar:
-            st.markdown("### Configuration")
-
-            # File type selector
-            file_type = st.radio(
-                "Upload file type:",
-                ["CSV (Recommended)", "Excel"],
-                help="CSV format is simpler and more versatile"
-            )
-
-            if file_type == "CSV (Recommended)":
-                uploaded_file = st.file_uploader(
-                    "Upload Criteria CSV",
-                    type=['csv'],
-                    help="CSV with one column named 'Criterion' containing criteria names"
-                )
-
-                if uploaded_file is not None:
-                    # Update data source if new file uploaded
-                    new_source = CSVQuestionnaireDataSource(uploaded_file)
-                    new_criteria = new_source.get_criteria()
-
-                    if 'criteria' not in st.session_state or \
-                       st.session_state.criteria != new_criteria:
-                        # Reset questionnaire when criteria change
-                        st.session_state.criteria = new_criteria
-                        st.session_state.questionnaire_manager = QuestionnaireManager(
-                            new_criteria
-                        )
-                        st.session_state.answers = {}
-                        st.session_state.current_question = 0
-                        st.session_state.completed = False
-                        st.success(f"✓ CSV loaded! ({len(new_criteria)} criteria)")
-
-                with st.expander("📄 CSV Format Example"):
-                    st.code("""Criterion
-Passenger Activity
-Service & Modes
-Location
-Population & Jobs
-Bus Terminal""")
-
-            else:  # Excel
-                uploaded_file = st.file_uploader(
-                    "Upload Excel Template",
-                    type=['xlsx'],
-                    help="Upload the AHP questionnaire Excel template to load criteria"
-                )
-
-                if uploaded_file is not None:
-                    # Update data source if new file uploaded
-                    new_source = ExcelQuestionnaireDataSource(uploaded_file)
-                    new_criteria = new_source.get_criteria()
-
-                    if 'criteria' not in st.session_state or \
-                       st.session_state.criteria != new_criteria:
-                        st.session_state.criteria = new_criteria
-                        st.session_state.questionnaire_manager = QuestionnaireManager(
-                            new_criteria
-                        )
-                        st.session_state.answers = {}
-                        st.session_state.current_question = 0
-                        st.session_state.completed = False
-                        st.success(f"✓ Excel loaded! ({len(new_criteria)} criteria)")
-
+            st.markdown("### Questionnaire Criteria")
+            st.caption("Criteria loaded from criteria.csv")
             st.markdown("---")
-            st.markdown("**Current Criteria:**")
+
             for criterion in st.session_state.criteria:
                 st.caption(f"• {criterion.name}")
-            st.caption(f"Total: {len(st.session_state.criteria)} criteria")
-            st.caption(f"Comparisons: {len(st.session_state.criteria) * (len(st.session_state.criteria) - 1) // 2}")
+
+            st.markdown("---")
+            st.caption(f"**Total Criteria:** {len(st.session_state.criteria)}")
+            st.caption(f"**Total Comparisons:** {len(st.session_state.criteria) * (len(st.session_state.criteria) - 1) // 2}")
+
+            # Info about results storage
+            st.markdown("---")
+            st.info("📊 Results are automatically saved to results.csv when you complete the questionnaire.")
 
         # Scale guide
         self.ui.render_scale_guide()
@@ -790,16 +800,25 @@ Bus Terminal""")
 def main():
     """Application entry point with dependency injection."""
 
+    # Determine criteria source (CSV file or default)
+    criteria_file = "criteria.csv"
+    if os.path.exists(criteria_file):
+        data_source = CSVQuestionnaireDataSource(criteria_file)
+    else:
+        st.warning(f"⚠️ {criteria_file} not found. Using default criteria.")
+        data_source = DefaultQuestionnaireDataSource()
+
     # Create dependencies (Dependency Inversion)
-    data_source = DefaultQuestionnaireDataSource()
     calculator = AHPCalculator()
     export_service = ExportService()
+    persistence_service = PersistenceService(results_file="results.csv")
 
     # Inject dependencies into app
     app = AHPQuestionnaireApp(
         data_source=data_source,
         calculator=calculator,
-        export_service=export_service
+        export_service=export_service,
+        persistence_service=persistence_service
     )
 
     # Run application
