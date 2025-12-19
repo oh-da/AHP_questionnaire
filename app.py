@@ -12,6 +12,8 @@ import pandas as pd
 import numpy as np
 import json
 import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 
 # ============================================================================
@@ -385,6 +387,108 @@ class PersistenceService:
             # Silently fail - will be handled by caller
             print(f"Error saving results: {e}")  # Log to console
             return False
+
+
+class GoogleSheetsPersistenceService:
+    """Handles saving questionnaire results to Google Sheets (permanent storage)."""
+
+    def __init__(self, sheet_name: str = "AHP Results"):
+        self.sheet_name = sheet_name
+        self.client = None
+        self.sheet = None
+        self._initialize_sheets()
+
+    def _initialize_sheets(self):
+        """Initialize Google Sheets connection using Streamlit secrets."""
+        try:
+            # Check if Google Sheets credentials are configured
+            if "gcp_service_account" not in st.secrets:
+                print("Google Sheets credentials not found in secrets")
+                return
+
+            # Set up credentials
+            scope = [
+                'https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive'
+            ]
+
+            credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+                st.secrets["gcp_service_account"],
+                scope
+            )
+
+            self.client = gspread.authorize(credentials)
+
+            # Open or create spreadsheet
+            try:
+                self.sheet = self.client.open(self.sheet_name).sheet1
+            except gspread.SpreadsheetNotFound:
+                # Create new spreadsheet
+                spreadsheet = self.client.create(self.sheet_name)
+                self.sheet = spreadsheet.sheet1
+                # Share with your email (from secrets)
+                if "admin_email" in st.secrets:
+                    spreadsheet.share(st.secrets["admin_email"], perm_type='user', role='writer')
+
+        except Exception as e:
+            print(f"Error initializing Google Sheets: {e}")
+            self.client = None
+            self.sheet = None
+
+    def save_results(
+        self,
+        criteria: List[Criterion],
+        answers: Dict,
+        results: AHPResults
+    ) -> bool:
+        """Save questionnaire results to Google Sheets."""
+        if not self.sheet:
+            return False
+
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Build row data
+            row_data = {
+                'timestamp': timestamp,
+                'consistency_ratio': results.cr,
+                'consistency_index': results.ci,
+                'lambda_max': results.lambda_max,
+                'is_consistent': results.is_consistent()
+            }
+
+            # Add weights for each criterion
+            for criterion in criteria:
+                row_data[f'weight_{criterion.name}'] = results.weights.get(criterion.name, 0)
+
+            # Add answers for each comparison
+            for key, value in answers.items():
+                row_data[f'answer_{key}'] = value
+
+            # Get or create headers
+            existing_headers = self.sheet.row_values(1)
+            headers = list(row_data.keys())
+
+            if not existing_headers:
+                # First row - add headers
+                self.sheet.append_row(headers)
+            elif existing_headers != headers:
+                # Headers changed (different criteria) - update
+                self.sheet.update('1:1', [headers])
+
+            # Append data row
+            values = [row_data[h] for h in headers]
+            self.sheet.append_row(values)
+
+            return True
+
+        except Exception as e:
+            print(f"Error saving to Google Sheets: {e}")
+            return False
+
+    def is_configured(self) -> bool:
+        """Check if Google Sheets is properly configured."""
+        return self.sheet is not None
 
 
 # ============================================================================
@@ -790,7 +894,15 @@ def main():
     # Create dependencies (Dependency Inversion)
     calculator = AHPCalculator()
     export_service = ExportService()
-    persistence_service = PersistenceService(results_file="results.csv")
+
+    # Use Google Sheets if configured, otherwise local CSV
+    sheets_service = GoogleSheetsPersistenceService(sheet_name="AHP Questionnaire Results")
+    if sheets_service.is_configured():
+        persistence_service = sheets_service
+        print("✓ Using Google Sheets for permanent storage")
+    else:
+        persistence_service = PersistenceService(results_file="results.csv")
+        print("⚠ Using local CSV (ephemeral on Streamlit Cloud)")
 
     # Inject dependencies into app
     app = AHPQuestionnaireApp(
