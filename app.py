@@ -556,7 +556,7 @@ class UIRenderer:
                 'Percentage': [f"{w*100:.2f}%" for w in results.weights.values()]
             })
             display_df = display_df.sort_values('Weight', ascending=False)
-            st.dataframe(display_df, hide_index=True, use_container_width=True)
+            st.dataframe(display_df, hide_index=True, width='stretch')
 
 
 # ============================================================================
@@ -736,6 +736,25 @@ class AHPQuestionnaireApp:
             st.markdown("---")
             st.caption(f"**Total Criteria:** {len(st.session_state.criteria)}")
             st.caption(f"**Total Comparisons:** {len(st.session_state.criteria) * (len(st.session_state.criteria) - 1) // 2}")
+
+            # Download accumulated results if file exists
+            if os.path.exists("results.csv"):
+                st.markdown("---")
+                st.markdown("### 📥 Download Results")
+                with open("results.csv", "rb") as f:
+                    st.download_button(
+                        label="Download results.csv",
+                        data=f.read(),
+                        file_name="results.csv",
+                        mime="text/csv",
+                        help="Download all accumulated questionnaire results"
+                    )
+                # Show file info
+                try:
+                    df = pd.read_csv("results.csv")
+                    st.caption(f"Total responses: {len(df)}")
+                except:
+                    pass
 
             # Info about results storage
             st.markdown("---")
