@@ -409,6 +409,7 @@ class GoogleSheetsPersistenceService:
             # Set up credentials
             scope = [
                 'https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/spreadsheets',
                 'https://www.googleapis.com/auth/drive'
             ]
 
