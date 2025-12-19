@@ -7,12 +7,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime
-from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
-import openpyxl
-from io import BytesIO
 import json
 import os
 
@@ -188,48 +185,6 @@ class AHPCalculator(IAHPCalculator):
 # ============================================================================
 # DATA SOURCES (Single Responsibility - Data loading)
 # ============================================================================
-
-class ExcelQuestionnaireDataSource(IQuestionnaireDataSource):
-    """Loads questionnaire structure from Excel file."""
-
-    def __init__(self, excel_file):
-        self.excel_file = excel_file
-
-    def get_criteria(self) -> List[Criterion]:
-        """Parse criteria from Excel file."""
-        try:
-            df = pd.read_excel(self.excel_file, sheet_name=0)
-
-            # Look for criteria in the Excel structure
-            # Assuming criteria are in a specific location based on the template
-            criteria_names = []
-
-            # Try to find criteria row/column
-            for col in df.columns:
-                if 'Criteria' in str(col) or 'criterion' in str(col).lower():
-                    criteria_names = df[col].dropna().tolist()
-                    break
-
-            if not criteria_names:
-                # Fallback: look for known criteria names
-                known_criteria = [
-                    'Passenger Activity', 'Service & Modes', 'Location',
-                    'Population & Jobs', 'Bus Terminal'
-                ]
-                criteria_names = known_criteria
-
-            return [
-                Criterion(name=name, index=i)
-                for i, name in enumerate(criteria_names[:5])
-            ]
-        except Exception as e:
-            st.error(f"Error parsing Excel: {e}")
-            return self._get_default_criteria()
-
-    def _get_default_criteria(self) -> List[Criterion]:
-        """Return default criteria as fallback."""
-        return DefaultQuestionnaireDataSource().get_criteria()
-
 
 class DefaultQuestionnaireDataSource(IQuestionnaireDataSource):
     """Provides default questionnaire structure (Liskov Substitution)."""
