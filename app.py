@@ -929,9 +929,11 @@ def main():
     if sheets_service.is_configured():
         persistence_service = sheets_service
         print("✓ Using Google Sheets for permanent storage")
+        st.sidebar.success("✅ Google Sheets connected!")
     else:
         persistence_service = PersistenceService(results_file="results.csv")
         print("⚠ Using local CSV (ephemeral on Streamlit Cloud)")
+        st.sidebar.warning("⚠️ Using local CSV (Google Sheets not configured)")
 
     # Inject dependencies into app
     app = AHPQuestionnaireApp(
