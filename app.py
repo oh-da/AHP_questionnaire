@@ -490,6 +490,16 @@ class GoogleSheetsPersistenceService:
         """Check if Google Sheets is properly configured."""
         return self.sheet is not None
 
+    def get_spreadsheet_url(self) -> Optional[str]:
+        """Get the URL of the Google Sheets spreadsheet."""
+        if not self.sheet:
+            return None
+        try:
+            spreadsheet = self.client.open(self.sheet_name)
+            return spreadsheet.url
+        except:
+            return None
+
 
 # ============================================================================
 # UI COMPONENTS (Single Responsibility - UI rendering)
@@ -780,9 +790,12 @@ class AHPQuestionnaireApp:
             )
             st.session_state.results_saved = True
             if save_success:
-                st.success("✅ Results saved to results.csv")
+                if isinstance(self.persistence_service, GoogleSheetsPersistenceService):
+                    st.success("✅ Results saved to Google Sheets permanently!")
+                else:
+                    st.success("✅ Results saved to results.csv")
             else:
-                st.warning("⚠️ Could not save to file system (Streamlit Cloud limitation). Use download button below.")
+                st.warning("⚠️ Could not save results. Use download button below.")
 
         # Render results
         criteria_names = [c.name for c in st.session_state.criteria]
@@ -860,9 +873,25 @@ class AHPQuestionnaireApp:
                 except:
                     pass
 
+            # Google Sheets link if configured
+            if isinstance(self.persistence_service, GoogleSheetsPersistenceService):
+                if self.persistence_service.is_configured():
+                    st.markdown("---")
+                    st.markdown("### 📊 Google Sheets")
+                    url = self.persistence_service.get_spreadsheet_url()
+                    if url:
+                        st.success("✅ Connected to Google Sheets")
+                        st.markdown(f"[📄 Open Results Spreadsheet]({url})")
+                        st.caption("All results are saved here permanently")
+                    else:
+                        st.info("Google Sheets configured")
+
             # Info about results storage
             st.markdown("---")
-            st.info("📊 Results are automatically saved to results.csv when you complete the questionnaire.")
+            if isinstance(self.persistence_service, GoogleSheetsPersistenceService) and self.persistence_service.is_configured():
+                st.info("📊 Results are automatically saved to Google Sheets.")
+            else:
+                st.info("📊 Results are saved to results.csv (download before app restarts).")
 
         # Scale guide
         self.ui.render_scale_guide()
