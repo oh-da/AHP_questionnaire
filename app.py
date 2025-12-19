@@ -354,7 +354,10 @@ class UIRenderer:
 
         st.markdown("""
             <style>
-            .main { background-color: #f8f9fa; }
+            .main {
+                background-color: #f8f9fa;
+                color: #262730;
+            }
             .stButton>button {
                 background-color: #4CAF50;
                 color: white;
@@ -362,6 +365,12 @@ class UIRenderer:
                 padding: 0.5rem 2rem;
             }
             .stProgress > div > div { background-color: #4CAF50; }
+            h1, h2, h3, h4, h5, h6, p, div, span, label {
+                color: #262730 !important;
+            }
+            .stMarkdown {
+                color: #262730;
+            }
             </style>
         """, unsafe_allow_html=True)
 
@@ -412,7 +421,7 @@ class UIRenderer:
             st.info(f"**{comparison.criterion_a.name}**")
 
         with col2:
-            st.markdown("<div style='text-align: center; padding-top: 10px;'>vs</div>",
+            st.markdown("<div style='text-align: center; padding-top: 10px; color: #262730;'><strong>vs</strong></div>",
                        unsafe_allow_html=True)
 
         with col3:
