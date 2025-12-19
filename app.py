@@ -110,15 +110,15 @@ class AHPCalculator(IAHPCalculator):
         """
         Convert -8..8 scale to AHP ratio.
         0: equal importance (1.0)
-        Positive: A more important than B (x + 1)
-        Negative: B more important than A (1 / (|x| + 1))
+        Positive: B more important than A (slider moved RIGHT)
+        Negative: A more important than B (slider moved LEFT)
         """
         if scale_value > 0:
-            return scale_value + 1
+            return 1.0 / (scale_value + 1)  # B more important (right side)
         elif scale_value == 0:
             return 1.0
         else:
-            return 1.0 / (abs(scale_value) + 1)
+            return abs(scale_value) + 1  # A more important (left side)
 
     def build_pairwise_matrix(
         self,
@@ -382,7 +382,8 @@ class PersistenceService:
 
             return True
         except Exception as e:
-            st.error(f"Error saving results: {e}")
+            # Silently fail - will be handled by caller
+            print(f"Error saving results: {e}")  # Log to console
             return False
 
 
@@ -457,13 +458,13 @@ class UIRenderer:
                 **Understanding the Scale (-8 to +8):**
 
                 - **0**: Both criteria are equally important
-                - **+1 to +8**: Left criterion is more important (higher = much more important)
-                - **-1 to -8**: Right criterion is more important (lower = much more important)
+                - **Slide LEFT (negative -1 to -8)**: Left criterion is more important (further left = much more important)
+                - **Slide RIGHT (positive +1 to +8)**: Right criterion is more important (further right = much more important)
 
-                **Example:** If comparing "Passenger Activity" vs "Location":
-                - Choose **+5** if Passenger Activity is strongly more important
-                - Choose **0** if they're equally important
-                - Choose **-3** if Location is moderately more important
+                **Example:** If comparing "Passenger Activity" (LEFT) vs "Location" (RIGHT):
+                - Move slider LEFT to **-5** if Passenger Activity is strongly more important
+                - Keep at **0** if they're equally important
+                - Move slider RIGHT to **+3** if Location is moderately more important
             """)
 
     @staticmethod
@@ -501,16 +502,16 @@ class UIRenderer:
             max_value=8,
             value=default_value,
             key=key,
-            help=f"Negative: {comparison.criterion_b.name} is more important | "
-                 f"Zero: Equal importance | "
-                 f"Positive: {comparison.criterion_a.name} is more important"
+            help=f"Move LEFT (negative): {comparison.criterion_a.name} is more important | "
+                 f"Center (0): Equal importance | "
+                 f"Move RIGHT (positive): {comparison.criterion_b.name} is more important"
         )
 
         # Show interpretation
         if value > 0:
-            st.caption(f"✓ {comparison.criterion_a.name} is more important (strength: {value})")
+            st.caption(f"✓ {comparison.criterion_b.name} is more important (strength: {value})")
         elif value < 0:
-            st.caption(f"✓ {comparison.criterion_b.name} is more important (strength: {abs(value)})")
+            st.caption(f"✓ {comparison.criterion_a.name} is more important (strength: {abs(value)})")
         else:
             st.caption(f"✓ Both are equally important")
 
@@ -668,12 +669,16 @@ class AHPQuestionnaireApp:
 
         # Save results to persistent storage (once per completion)
         if 'results_saved' not in st.session_state:
-            if self.persistence_service.save_results(
+            save_success = self.persistence_service.save_results(
                 st.session_state.criteria,
                 st.session_state.answers,
                 results
-            ):
-                st.session_state.results_saved = True
+            )
+            st.session_state.results_saved = True
+            if save_success:
+                st.success("✅ Results saved to results.csv")
+            else:
+                st.warning("⚠️ Could not save to file system (Streamlit Cloud limitation). Use download button below.")
 
         # Render results
         criteria_names = [c.name for c in st.session_state.criteria]
