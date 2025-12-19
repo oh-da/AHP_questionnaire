@@ -1,0 +1,697 @@
+"""
+AHP Questionnaire Streamlit App
+SOLID Design Principles Implementation
+"""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import List, Dict, Tuple, Optional
+import streamlit as st
+import pandas as pd
+import numpy as np
+import openpyxl
+from io import BytesIO
+import json
+
+
+# ============================================================================
+# DOMAIN MODELS (Single Responsibility - Data structures)
+# ============================================================================
+
+@dataclass
+class Criterion:
+    """Represents a single criterion in the AHP questionnaire."""
+    name: str
+    index: int
+
+
+@dataclass
+class PairwiseComparison:
+    """Represents a pairwise comparison between two criteria."""
+    criterion_a: Criterion
+    criterion_b: Criterion
+    question_number: int
+
+    def get_question_text(self) -> str:
+        return f"{self.criterion_a.name} vs {self.criterion_b.name}"
+
+
+@dataclass
+class AHPResults:
+    """Contains computed AHP weights and consistency metrics."""
+    weights: Dict[str, float]
+    lambda_max: float
+    ci: float
+    cr: float
+
+    def is_consistent(self, threshold: float = 0.1) -> bool:
+        return self.cr <= threshold
+
+
+# ============================================================================
+# ABSTRACTIONS (Dependency Inversion - Define interfaces)
+# ============================================================================
+
+class IQuestionnaireDataSource(ABC):
+    """Interface for loading questionnaire structure."""
+
+    @abstractmethod
+    def get_criteria(self) -> List[Criterion]:
+        """Return list of criteria."""
+        pass
+
+
+class IAHPCalculator(ABC):
+    """Interface for AHP calculations."""
+
+    @abstractmethod
+    def compute_weights(
+        self,
+        criteria: List[Criterion],
+        comparisons: Dict[Tuple[int, int], float]
+    ) -> AHPResults:
+        """Compute AHP weights and consistency from pairwise comparisons."""
+        pass
+
+
+class IExportService(ABC):
+    """Interface for exporting results."""
+
+    @abstractmethod
+    def export_to_csv(self, answers: Dict, results: AHPResults) -> bytes:
+        """Export answers and results to CSV format."""
+        pass
+
+    @abstractmethod
+    def export_to_json(self, answers: Dict, results: AHPResults) -> bytes:
+        """Export answers and results to JSON format."""
+        pass
+
+
+# ============================================================================
+# AHP CALCULATION ENGINE (Single Responsibility - Pure computation)
+# ============================================================================
+
+class AHPCalculator(IAHPCalculator):
+    """
+    Implements AHP weight calculation and consistency checking.
+    Open-Closed: Can be extended without modification.
+    """
+
+    def __init__(self, ri_values: Optional[Dict[int, float]] = None):
+        """Initialize with Random Index values for different matrix sizes."""
+        self.ri_values = ri_values or {
+            1: 0.00, 2: 0.00, 3: 0.58, 4: 0.90,
+            5: 1.12, 6: 1.24, 7: 1.32, 8: 1.41,
+            9: 1.45, 10: 1.49
+        }
+
+    def convert_scale_to_ratio(self, scale_value: int) -> float:
+        """
+        Convert -8..8 scale to AHP ratio.
+        0: equal importance (1.0)
+        Positive: A more important than B (x + 1)
+        Negative: B more important than A (1 / (|x| + 1))
+        """
+        if scale_value > 0:
+            return scale_value + 1
+        elif scale_value == 0:
+            return 1.0
+        else:
+            return 1.0 / (abs(scale_value) + 1)
+
+    def build_pairwise_matrix(
+        self,
+        n_criteria: int,
+        comparisons: Dict[Tuple[int, int], float]
+    ) -> np.ndarray:
+        """Build the full pairwise comparison matrix from upper triangle."""
+        matrix = np.ones((n_criteria, n_criteria))
+
+        # Fill upper triangle
+        for (i, j), value in comparisons.items():
+            if i < j:
+                matrix[i, j] = value
+                matrix[j, i] = 1.0 / value  # Reciprocal for lower triangle
+
+        return matrix
+
+    def compute_weights(
+        self,
+        criteria: List[Criterion],
+        comparisons: Dict[Tuple[int, int], float]
+    ) -> AHPResults:
+        """Compute AHP weights using geometric mean method."""
+        n = len(criteria)
+
+        # Convert scale values to ratios
+        ratio_comparisons = {
+            (i, j): self.convert_scale_to_ratio(scale)
+            for (i, j), scale in comparisons.items()
+        }
+
+        # Build pairwise matrix
+        matrix = self.build_pairwise_matrix(n, ratio_comparisons)
+
+        # Calculate weights using geometric mean
+        geometric_means = np.power(np.prod(matrix, axis=1), 1.0 / n)
+        weights = geometric_means / geometric_means.sum()
+
+        # Calculate lambda_max for consistency
+        weighted_sum = matrix @ weights
+        lambda_max = np.mean(weighted_sum / weights)
+
+        # Consistency Index (CI)
+        ci = (lambda_max - n) / (n - 1) if n > 1 else 0.0
+
+        # Consistency Ratio (CR)
+        ri = self.ri_values.get(n, 1.12)
+        cr = ci / ri if ri > 0 else 0.0
+
+        # Build weights dictionary
+        weights_dict = {
+            criterion.name: float(weights[criterion.index])
+            for criterion in criteria
+        }
+
+        return AHPResults(
+            weights=weights_dict,
+            lambda_max=float(lambda_max),
+            ci=float(ci),
+            cr=float(cr)
+        )
+
+
+# ============================================================================
+# DATA SOURCES (Single Responsibility - Data loading)
+# ============================================================================
+
+class ExcelQuestionnaireDataSource(IQuestionnaireDataSource):
+    """Loads questionnaire structure from Excel file."""
+
+    def __init__(self, excel_file):
+        self.excel_file = excel_file
+
+    def get_criteria(self) -> List[Criterion]:
+        """Parse criteria from Excel file."""
+        try:
+            df = pd.read_excel(self.excel_file, sheet_name=0)
+
+            # Look for criteria in the Excel structure
+            # Assuming criteria are in a specific location based on the template
+            criteria_names = []
+
+            # Try to find criteria row/column
+            for col in df.columns:
+                if 'Criteria' in str(col) or 'criterion' in str(col).lower():
+                    criteria_names = df[col].dropna().tolist()
+                    break
+
+            if not criteria_names:
+                # Fallback: look for known criteria names
+                known_criteria = [
+                    'Passenger Activity', 'Service & Modes', 'Location',
+                    'Population & Jobs', 'Bus Terminal'
+                ]
+                criteria_names = known_criteria
+
+            return [
+                Criterion(name=name, index=i)
+                for i, name in enumerate(criteria_names[:5])
+            ]
+        except Exception as e:
+            st.error(f"Error parsing Excel: {e}")
+            return self._get_default_criteria()
+
+    def _get_default_criteria(self) -> List[Criterion]:
+        """Return default criteria as fallback."""
+        return DefaultQuestionnaireDataSource().get_criteria()
+
+
+class DefaultQuestionnaireDataSource(IQuestionnaireDataSource):
+    """Provides default questionnaire structure (Liskov Substitution)."""
+
+    def get_criteria(self) -> List[Criterion]:
+        """Return the 5 standard criteria."""
+        criteria_names = [
+            'Passenger Activity',
+            'Service & Modes',
+            'Location',
+            'Population & Jobs',
+            'Bus Terminal'
+        ]
+        return [
+            Criterion(name=name, index=i)
+            for i, name in enumerate(criteria_names)
+        ]
+
+
+# ============================================================================
+# QUESTIONNAIRE LOGIC (Single Responsibility - Business logic)
+# ============================================================================
+
+class QuestionnaireManager:
+    """Manages questionnaire state and comparison generation."""
+
+    def __init__(self, criteria: List[Criterion]):
+        self.criteria = criteria
+        self.comparisons = self._generate_comparisons()
+
+    def _generate_comparisons(self) -> List[PairwiseComparison]:
+        """Generate all pairwise comparisons (upper triangle)."""
+        comparisons = []
+        question_num = 1
+
+        n = len(self.criteria)
+        for i in range(n):
+            for j in range(i + 1, n):
+                comparisons.append(
+                    PairwiseComparison(
+                        criterion_a=self.criteria[i],
+                        criterion_b=self.criteria[j],
+                        question_number=question_num
+                    )
+                )
+                question_num += 1
+
+        return comparisons
+
+    def get_total_questions(self) -> int:
+        """Return total number of comparisons."""
+        return len(self.comparisons)
+
+    def get_comparison(self, index: int) -> Optional[PairwiseComparison]:
+        """Get comparison by index."""
+        if 0 <= index < len(self.comparisons):
+            return self.comparisons[index]
+        return None
+
+
+# ============================================================================
+# EXPORT SERVICE (Single Responsibility - Export logic)
+# ============================================================================
+
+class ExportService(IExportService):
+    """Handles exporting results to various formats."""
+
+    def export_to_csv(self, answers: Dict, results: AHPResults) -> bytes:
+        """Export answers and results to CSV."""
+        rows = []
+
+        # Add answers
+        rows.append(['ANSWERS', '', ''])
+        rows.append(['Question', 'Comparison', 'Response'])
+        for key, value in answers.items():
+            rows.append([key, '', value])
+
+        rows.append(['', '', ''])
+        rows.append(['RESULTS', '', ''])
+        rows.append(['Criterion', 'Weight', 'Percentage'])
+
+        for criterion, weight in results.weights.items():
+            rows.append([criterion, f"{weight:.4f}", f"{weight*100:.2f}%"])
+
+        rows.append(['', '', ''])
+        rows.append(['CONSISTENCY METRICS', '', ''])
+        rows.append(['Lambda Max', f"{results.lambda_max:.4f}", ''])
+        rows.append(['Consistency Index (CI)', f"{results.ci:.4f}", ''])
+        rows.append(['Consistency Ratio (CR)', f"{results.cr:.4f}", ''])
+        rows.append(['Status', 'Consistent' if results.is_consistent() else 'Review Needed', ''])
+
+        df = pd.DataFrame(rows)
+        return df.to_csv(index=False, header=False).encode('utf-8')
+
+    def export_to_json(self, answers: Dict, results: AHPResults) -> bytes:
+        """Export answers and results to JSON."""
+        data = {
+            'answers': answers,
+            'results': {
+                'weights': results.weights,
+                'lambda_max': results.lambda_max,
+                'consistency_index': results.ci,
+                'consistency_ratio': results.cr,
+                'is_consistent': results.is_consistent()
+            }
+        }
+        return json.dumps(data, indent=2).encode('utf-8')
+
+
+# ============================================================================
+# UI COMPONENTS (Single Responsibility - UI rendering)
+# ============================================================================
+
+class UIRenderer:
+    """Handles all UI rendering logic (Interface Segregation)."""
+
+    @staticmethod
+    def render_header():
+        """Render app header."""
+        st.set_page_config(
+            page_title="AHP Questionnaire",
+            page_icon="📊",
+            layout="wide"
+        )
+
+        st.markdown("""
+            <style>
+            .main { background-color: #f8f9fa; }
+            .stButton>button {
+                background-color: #4CAF50;
+                color: white;
+                border-radius: 8px;
+                padding: 0.5rem 2rem;
+            }
+            .stProgress > div > div { background-color: #4CAF50; }
+            </style>
+        """, unsafe_allow_html=True)
+
+        st.title("📊 Hub Prioritization Questionnaire")
+        st.markdown("""
+            Welcome! This questionnaire helps prioritize transportation hubs using
+            the Analytic Hierarchy Process (AHP). You'll compare different criteria
+            to determine their relative importance.
+        """)
+
+    @staticmethod
+    def render_scale_guide():
+        """Render the comparison scale guide."""
+        with st.expander("ℹ️ How to answer", expanded=False):
+            st.markdown("""
+                **Understanding the Scale (-8 to +8):**
+
+                - **0**: Both criteria are equally important
+                - **+1 to +8**: Left criterion is more important (higher = much more important)
+                - **-1 to -8**: Right criterion is more important (lower = much more important)
+
+                **Example:** If comparing "Passenger Activity" vs "Location":
+                - Choose **+5** if Passenger Activity is strongly more important
+                - Choose **0** if they're equally important
+                - Choose **-3** if Location is moderately more important
+            """)
+
+    @staticmethod
+    def render_progress(current: int, total: int):
+        """Render progress indicator."""
+        progress = (current) / total
+        st.progress(progress)
+        st.caption(f"Question {current} of {total}")
+
+    @staticmethod
+    def render_comparison_question(
+        comparison: PairwiseComparison,
+        key: str,
+        default_value: int = 0
+    ) -> int:
+        """Render a single comparison question."""
+        st.markdown(f"### Question {comparison.question_number}")
+        st.markdown(f"#### Which is more important?")
+
+        col1, col2, col3 = st.columns([2, 1, 2])
+
+        with col1:
+            st.info(f"**{comparison.criterion_a.name}**")
+
+        with col2:
+            st.markdown("<div style='text-align: center; padding-top: 10px;'>vs</div>",
+                       unsafe_allow_html=True)
+
+        with col3:
+            st.success(f"**{comparison.criterion_b.name}**")
+
+        value = st.slider(
+            f"Select importance (-8 to +8)",
+            min_value=-8,
+            max_value=8,
+            value=default_value,
+            key=key,
+            help=f"Negative: {comparison.criterion_b.name} is more important | "
+                 f"Zero: Equal importance | "
+                 f"Positive: {comparison.criterion_a.name} is more important"
+        )
+
+        # Show interpretation
+        if value > 0:
+            st.caption(f"✓ {comparison.criterion_a.name} is more important (strength: {value})")
+        elif value < 0:
+            st.caption(f"✓ {comparison.criterion_b.name} is more important (strength: {abs(value)})")
+        else:
+            st.caption(f"✓ Both are equally important")
+
+        return value
+
+    @staticmethod
+    def render_results(results: AHPResults, criteria_names: List[str]):
+        """Render results page."""
+        st.success("✅ Questionnaire Complete!")
+
+        # Consistency status
+        st.markdown("### Consistency Check")
+        if results.is_consistent():
+            st.success(f"✓ Your answers are consistent! (CR = {results.cr:.3f} ≤ 0.10)")
+        else:
+            st.warning(f"⚠️ Your answers may need review (CR = {results.cr:.3f} > 0.10)")
+
+        st.caption(f"Consistency Ratio (CR): {results.cr:.4f} | "
+                  f"Consistency Index (CI): {results.ci:.4f} | "
+                  f"Lambda Max: {results.lambda_max:.4f}")
+
+        # Weights visualization
+        st.markdown("### Priority Weights")
+
+        col1, col2 = st.columns([3, 2])
+
+        with col1:
+            # Bar chart
+            weights_df = pd.DataFrame({
+                'Criterion': list(results.weights.keys()),
+                'Weight': list(results.weights.values())
+            })
+            weights_df = weights_df.sort_values('Weight', ascending=True)
+
+            st.bar_chart(weights_df.set_index('Criterion'))
+
+        with col2:
+            # Table
+            display_df = pd.DataFrame({
+                'Criterion': list(results.weights.keys()),
+                'Weight': [f"{w:.4f}" for w in results.weights.values()],
+                'Percentage': [f"{w*100:.2f}%" for w in results.weights.values()]
+            })
+            display_df = display_df.sort_values('Weight', ascending=False)
+            st.dataframe(display_df, hide_index=True, use_container_width=True)
+
+
+# ============================================================================
+# APPLICATION CONTROLLER (Dependency Inversion - Depends on abstractions)
+# ============================================================================
+
+class AHPQuestionnaireApp:
+    """
+    Main application controller.
+    Orchestrates the flow using dependency injection.
+    """
+
+    def __init__(
+        self,
+        data_source: IQuestionnaireDataSource,
+        calculator: IAHPCalculator,
+        export_service: IExportService
+    ):
+        self.data_source = data_source
+        self.calculator = calculator
+        self.export_service = export_service
+        self.ui = UIRenderer()
+
+    def initialize_session_state(self):
+        """Initialize session state variables."""
+        if 'current_question' not in st.session_state:
+            st.session_state.current_question = 0
+
+        if 'answers' not in st.session_state:
+            st.session_state.answers = {}
+
+        if 'completed' not in st.session_state:
+            st.session_state.completed = False
+
+        if 'criteria' not in st.session_state:
+            st.session_state.criteria = self.data_source.get_criteria()
+
+        if 'questionnaire_manager' not in st.session_state:
+            st.session_state.questionnaire_manager = QuestionnaireManager(
+                st.session_state.criteria
+            )
+
+    def run_questionnaire_flow(self):
+        """Run the main questionnaire flow."""
+        manager: QuestionnaireManager = st.session_state.questionnaire_manager
+        total_questions = manager.get_total_questions()
+        current_idx = st.session_state.current_question
+
+        if current_idx < total_questions:
+            # Show progress
+            self.ui.render_progress(current_idx + 1, total_questions)
+
+            # Get current comparison
+            comparison = manager.get_comparison(current_idx)
+
+            # Get previous answer if exists
+            answer_key = f"q_{comparison.question_number}"
+            default_value = st.session_state.answers.get(answer_key, 0)
+
+            # Render question
+            answer = self.ui.render_comparison_question(
+                comparison,
+                key=answer_key,
+                default_value=default_value
+            )
+
+            # Save answer
+            st.session_state.answers[answer_key] = answer
+
+            # Navigation
+            col1, col2, col3 = st.columns([1, 2, 1])
+
+            with col1:
+                if current_idx > 0:
+                    if st.button("← Previous"):
+                        st.session_state.current_question -= 1
+                        st.rerun()
+
+            with col3:
+                if current_idx < total_questions - 1:
+                    if st.button("Next →"):
+                        st.session_state.current_question += 1
+                        st.rerun()
+                else:
+                    if st.button("Finish 🎯"):
+                        st.session_state.completed = True
+                        st.rerun()
+
+    def run_results_flow(self):
+        """Run the results display flow."""
+        manager: QuestionnaireManager = st.session_state.questionnaire_manager
+
+        # Build comparisons dictionary for calculator
+        comparisons_dict = {}
+        for comparison in manager.comparisons:
+            answer_key = f"q_{comparison.question_number}"
+            scale_value = st.session_state.answers.get(answer_key, 0)
+
+            i = comparison.criterion_a.index
+            j = comparison.criterion_b.index
+            comparisons_dict[(i, j)] = scale_value
+
+        # Calculate results
+        results = self.calculator.compute_weights(
+            st.session_state.criteria,
+            comparisons_dict
+        )
+
+        # Render results
+        criteria_names = [c.name for c in st.session_state.criteria]
+        self.ui.render_results(results, criteria_names)
+
+        # Export options
+        st.markdown("### Export Results")
+        col1, col2, col3 = st.columns([1, 1, 2])
+
+        with col1:
+            csv_data = self.export_service.export_to_csv(
+                st.session_state.answers,
+                results
+            )
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv_data,
+                file_name="ahp_results.csv",
+                mime="text/csv"
+            )
+
+        with col2:
+            json_data = self.export_service.export_to_json(
+                st.session_state.answers,
+                results
+            )
+            st.download_button(
+                label="📥 Download JSON",
+                data=json_data,
+                file_name="ahp_results.json",
+                mime="application/json"
+            )
+
+        # Reset button
+        st.markdown("---")
+        if st.button("🔄 Start New Questionnaire"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+
+    def run(self):
+        """Main application entry point."""
+        self.ui.render_header()
+        self.initialize_session_state()
+
+        # File upload option
+        with st.sidebar:
+            st.markdown("### Configuration")
+            uploaded_file = st.file_uploader(
+                "Upload Excel Template (optional)",
+                type=['xlsx'],
+                help="Upload the AHP questionnaire Excel template to load criteria"
+            )
+
+            if uploaded_file is not None:
+                # Update data source if new file uploaded
+                new_source = ExcelQuestionnaireDataSource(uploaded_file)
+                new_criteria = new_source.get_criteria()
+
+                if 'criteria' not in st.session_state or \
+                   st.session_state.criteria != new_criteria:
+                    st.session_state.criteria = new_criteria
+                    st.session_state.questionnaire_manager = QuestionnaireManager(
+                        new_criteria
+                    )
+                    st.success("✓ Excel template loaded!")
+
+            st.markdown("---")
+            st.markdown("**Criteria:**")
+            for criterion in st.session_state.criteria:
+                st.caption(f"• {criterion.name}")
+
+        # Scale guide
+        self.ui.render_scale_guide()
+
+        st.markdown("---")
+
+        # Main flow
+        if not st.session_state.completed:
+            self.run_questionnaire_flow()
+        else:
+            self.run_results_flow()
+
+
+# ============================================================================
+# MAIN ENTRY POINT
+# ============================================================================
+
+def main():
+    """Application entry point with dependency injection."""
+
+    # Create dependencies (Dependency Inversion)
+    data_source = DefaultQuestionnaireDataSource()
+    calculator = AHPCalculator()
+    export_service = ExportService()
+
+    # Inject dependencies into app
+    app = AHPQuestionnaireApp(
+        data_source=data_source,
+        calculator=calculator,
+        export_service=export_service
+    )
+
+    # Run application
+    app.run()
+
+
+if __name__ == "__main__":
+    main()
