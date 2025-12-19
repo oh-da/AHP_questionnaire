@@ -18,5 +18,21 @@ The app will open in your browser at `http://localhost:8501`
 - AHP weight calculation with consistency checking
 - Visual results with bar charts and tables
 - Export to CSV or JSON
-- Optional Excel template upload
+- **Versatile criteria loading**: Upload your own criteria via CSV or Excel
+- Automatic questionnaire generation for any number of criteria
 - SOLID design principles throughout
+
+## Custom Criteria
+
+Upload your own criteria using a CSV file with this format:
+
+```csv
+Criterion
+Passenger Activity
+Service & Modes
+Location
+Population & Jobs
+Bus Terminal
+```
+
+See `criteria_example.csv` for a template.

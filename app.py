@@ -246,6 +246,46 @@ class DefaultQuestionnaireDataSource(IQuestionnaireDataSource):
         ]
 
 
+class CSVQuestionnaireDataSource(IQuestionnaireDataSource):
+    """Loads questionnaire structure from CSV file."""
+
+    def __init__(self, csv_file):
+        self.csv_file = csv_file
+
+    def get_criteria(self) -> List[Criterion]:
+        """Parse criteria from CSV file."""
+        try:
+            df = pd.read_csv(self.csv_file)
+
+            # Expected CSV format: single column named 'Criterion' or 'Criteria'
+            if 'Criterion' in df.columns:
+                criteria_names = df['Criterion'].dropna().tolist()
+            elif 'Criteria' in df.columns:
+                criteria_names = df['Criteria'].dropna().tolist()
+            elif len(df.columns) == 1:
+                # If there's only one column, use it
+                criteria_names = df.iloc[:, 0].dropna().tolist()
+            else:
+                st.error("CSV must have a column named 'Criterion' or 'Criteria'")
+                return self._get_default_criteria()
+
+            if not criteria_names or len(criteria_names) < 2:
+                st.error("CSV must contain at least 2 criteria")
+                return self._get_default_criteria()
+
+            return [
+                Criterion(name=str(name).strip(), index=i)
+                for i, name in enumerate(criteria_names)
+            ]
+        except Exception as e:
+            st.error(f"Error parsing CSV: {e}")
+            return self._get_default_criteria()
+
+    def _get_default_criteria(self) -> List[Criterion]:
+        """Return default criteria as fallback."""
+        return DefaultQuestionnaireDataSource().get_criteria()
+
+
 # ============================================================================
 # QUESTIONNAIRE LOGIC (Single Responsibility - Business logic)
 # ============================================================================
@@ -354,23 +394,41 @@ class UIRenderer:
 
         st.markdown("""
             <style>
+            /* Main content area - light background with dark text */
             .main {
                 background-color: #f8f9fa;
+            }
+            .main h1, .main h2, .main h3, .main h4, .main h5, .main h6,
+            .main p, .main div, .main span, .main label {
+                color: #262730 !important;
+            }
+            .main .stMarkdown {
                 color: #262730;
             }
+
+            /* Sidebar - keep default dark background with light text */
+            [data-testid="stSidebar"] {
+                background-color: #262730;
+            }
+            [data-testid="stSidebar"] h1,
+            [data-testid="stSidebar"] h2,
+            [data-testid="stSidebar"] h3,
+            [data-testid="stSidebar"] p,
+            [data-testid="stSidebar"] label,
+            [data-testid="stSidebar"] div {
+                color: #fafafa !important;
+            }
+
+            /* Buttons */
             .stButton>button {
                 background-color: #4CAF50;
                 color: white;
                 border-radius: 8px;
                 padding: 0.5rem 2rem;
             }
+
+            /* Progress bar */
             .stProgress > div > div { background-color: #4CAF50; }
-            h1, h2, h3, h4, h5, h6, p, div, span, label {
-                color: #262730 !important;
-            }
-            .stMarkdown {
-                color: #262730;
-            }
             </style>
         """, unsafe_allow_html=True)
 
@@ -643,29 +701,75 @@ class AHPQuestionnaireApp:
         # File upload option
         with st.sidebar:
             st.markdown("### Configuration")
-            uploaded_file = st.file_uploader(
-                "Upload Excel Template (optional)",
-                type=['xlsx'],
-                help="Upload the AHP questionnaire Excel template to load criteria"
+
+            # File type selector
+            file_type = st.radio(
+                "Upload file type:",
+                ["CSV (Recommended)", "Excel"],
+                help="CSV format is simpler and more versatile"
             )
 
-            if uploaded_file is not None:
-                # Update data source if new file uploaded
-                new_source = ExcelQuestionnaireDataSource(uploaded_file)
-                new_criteria = new_source.get_criteria()
+            if file_type == "CSV (Recommended)":
+                uploaded_file = st.file_uploader(
+                    "Upload Criteria CSV",
+                    type=['csv'],
+                    help="CSV with one column named 'Criterion' containing criteria names"
+                )
 
-                if 'criteria' not in st.session_state or \
-                   st.session_state.criteria != new_criteria:
-                    st.session_state.criteria = new_criteria
-                    st.session_state.questionnaire_manager = QuestionnaireManager(
-                        new_criteria
-                    )
-                    st.success("✓ Excel template loaded!")
+                if uploaded_file is not None:
+                    # Update data source if new file uploaded
+                    new_source = CSVQuestionnaireDataSource(uploaded_file)
+                    new_criteria = new_source.get_criteria()
+
+                    if 'criteria' not in st.session_state or \
+                       st.session_state.criteria != new_criteria:
+                        # Reset questionnaire when criteria change
+                        st.session_state.criteria = new_criteria
+                        st.session_state.questionnaire_manager = QuestionnaireManager(
+                            new_criteria
+                        )
+                        st.session_state.answers = {}
+                        st.session_state.current_question = 0
+                        st.session_state.completed = False
+                        st.success(f"✓ CSV loaded! ({len(new_criteria)} criteria)")
+
+                with st.expander("📄 CSV Format Example"):
+                    st.code("""Criterion
+Passenger Activity
+Service & Modes
+Location
+Population & Jobs
+Bus Terminal""")
+
+            else:  # Excel
+                uploaded_file = st.file_uploader(
+                    "Upload Excel Template",
+                    type=['xlsx'],
+                    help="Upload the AHP questionnaire Excel template to load criteria"
+                )
+
+                if uploaded_file is not None:
+                    # Update data source if new file uploaded
+                    new_source = ExcelQuestionnaireDataSource(uploaded_file)
+                    new_criteria = new_source.get_criteria()
+
+                    if 'criteria' not in st.session_state or \
+                       st.session_state.criteria != new_criteria:
+                        st.session_state.criteria = new_criteria
+                        st.session_state.questionnaire_manager = QuestionnaireManager(
+                            new_criteria
+                        )
+                        st.session_state.answers = {}
+                        st.session_state.current_question = 0
+                        st.session_state.completed = False
+                        st.success(f"✓ Excel loaded! ({len(new_criteria)} criteria)")
 
             st.markdown("---")
-            st.markdown("**Criteria:**")
+            st.markdown("**Current Criteria:**")
             for criterion in st.session_state.criteria:
                 st.caption(f"• {criterion.name}")
+            st.caption(f"Total: {len(st.session_state.criteria)} criteria")
+            st.caption(f"Comparisons: {len(st.session_state.criteria) * (len(st.session_state.criteria) - 1) // 2}")
 
         # Scale guide
         self.ui.render_scale_guide()
