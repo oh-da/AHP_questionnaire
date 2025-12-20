@@ -242,4 +242,6 @@ def save_results(user_name, criteria, comparisons, results):
         print(f"Error saving to local JSON: {e}")
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Use PORT from environment (Railway) or default to 5000 (local)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
