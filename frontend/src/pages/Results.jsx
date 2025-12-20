@@ -1,25 +1,71 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle2, AlertCircle, BarChart3, Download, RotateCcw } from 'lucide-react';
+import { CheckCircle2, AlertCircle, BarChart3, Download, RotateCcw, Loader2 } from 'lucide-react';
 import { calculateAHPWeights } from '../utils/ahpCalculator';
+import { calculateAHPWithAPI } from '../api/ahpAPI';
 import { useEffect, useState } from 'react';
 
 export default function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [savedToGist, setSavedToGist] = useState(false);
 
   useEffect(() => {
-    if (location.state) {
+    async function calculateResults() {
+      if (!location.state) {
+        setLoading(false);
+        return;
+      }
+
       const { answers, comparisons, criteria, userName } = location.state;
+
+      // Try API first (saves to GitHub Gist)
+      try {
+        const apiResults = await calculateAHPWithAPI(userName, criteria, answers, comparisons);
+
+        if (apiResults && !apiResults.error) {
+          // API call successful - results saved to GitHub Gist!
+          setResults({
+            ...apiResults,
+            userName,
+            criteria
+          });
+          setSavedToGist(true);
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log('API not available, falling back to local calculation');
+      }
+
+      // Fallback to local calculation
       const calculatedResults = calculateAHPWeights(criteria, answers, comparisons);
       setResults({
         ...calculatedResults,
         userName,
         criteria
       });
+      setSavedToGist(false);
+      setLoading(false);
     }
+
+    calculateResults();
   }, [location.state]);
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">מחשב תוצאות...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No results
   if (!results) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
@@ -83,6 +129,29 @@ export default function Results() {
             </p>
           )}
         </div>
+
+        {/* GitHub Gist Save Status */}
+        {savedToGist && (
+          <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+            <div className="flex items-center justify-center gap-2 text-blue-800">
+              <CheckCircle2 className="w-5 h-5" />
+              <p className="font-medium">
+                התוצאות נשמרו ב-GitHub Gist בהצלחה! 🎉
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!savedToGist && (
+          <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
+            <div className="flex items-center justify-center gap-2 text-amber-800">
+              <AlertCircle className="w-5 h-5" />
+              <p className="text-sm">
+                התוצאות חושבו מקומית (API לא זמין)
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Consistency Status */}
         <div className={`mb-6 p-6 rounded-2xl border-2 ${

@@ -1,91 +1,107 @@
-# GitHub Gist Setup (Simple & Free!)
+# GitHub Gist Setup for AHP Questionnaire
+
+This guide shows you how to set up automatic result saving to GitHub Gist (free, permanent cloud storage).
 
 ## Why GitHub Gist?
 
-- ✅ **100% Free** - No quotas or limits
-- ✅ **5-Minute Setup** - Just need a GitHub token
-- ✅ **Simple** - No complex APIs or service accounts
-- ✅ **Permanent Storage** - Results stored forever
-- ✅ **Easy to View** - View your CSV directly on GitHub
+- ✅ **Free** - Unlimited private gists
+- ✅ **Permanent** - Your data persists forever
+- ✅ **Accessible** - View results anytime at gist.github.com
+- ✅ **Versioned** - Every save creates a version (full history)
+- ✅ **CSV Format** - Easy to download and analyze in Excel
 
-## Setup Steps
+## 🔑 Step 1: Create a GitHub Personal Access Token
 
-### 1. Create a GitHub Personal Access Token
-
-1. Go to https://github.com/settings/tokens
-2. Click **"Generate new token"** → **"Generate new token (classic)"**
+1. Go to [GitHub Settings → Developer Settings → Personal Access Tokens](https://github.com/settings/tokens)
+2. Click "Generate new token" → "Generate new token (classic)"
 3. Give it a name: `AHP Questionnaire`
-4. Select scope: **`gist`** (just this one checkbox)
-5. Click **"Generate token"**
-6. **Copy the token** (save it somewhere - you won't see it again!)
+4. Select scopes:
+   - ✅ **gist** (Create and modify gists)
+5. Click "Generate token"
+6. **⚠️ IMPORTANT:** Copy the token NOW (you won't see it again!)
 
-### 2. Add Token to Streamlit Cloud Secrets
+Example token: `ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
-1. Go to your Streamlit Cloud app
-2. Click **Settings** → **Secrets**
-3. Add this:
+---
 
-```toml
-github_token = "ghp_YOUR_TOKEN_HERE"
+## 📝 Step 2: Set Environment Variables
+
+### Option A: Export in Terminal
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+python api_server.py
 ```
 
-4. Click **"Save"**
-5. Click **"Reboot app"**
+### Option B: Vercel/Production Deployment
 
-That's it! The app will automatically create a gist on the first questionnaire completion.
+1. Go to your Vercel project settings
+2. Navigate to "Environment Variables"
+3. Add:
+   - Name: `GITHUB_TOKEN`
+   - Value: `ghp_your_token_here`
+4. Redeploy
 
-## Viewing Your Results
+---
 
-After the first questionnaire is completed:
+## 🚀 Step 3: Run the Server
 
-1. Check the **sidebar** in your app
-2. You'll see: **"📊 GitHub Gist"**
-3. Click **"View Results"**
-4. Opens your GitHub Gist with all results in CSV format!
+```bash
+# Make sure environment variable is set
+python api_server.py
+```
 
-## Optional: Reuse an Existing Gist
+You should see:
+```
+✅ Saved to GitHub Gist: https://gist.github.com/xxxxx
+```
 
-If you want to use a specific gist:
+---
 
-1. Create a gist manually at https://gist.github.com
-2. Copy the gist ID from the URL:
+## 🎯 Step 4: Complete a Questionnaire
+
+1. Go to your app (localhost:5000 or your Vercel URL)
+2. Complete a questionnaire
+3. Check the server logs for:
    ```
-   https://gist.github.com/username/GIST_ID_HERE
+   ✅ Saved to GitHub Gist: https://gist.github.com/username/xxxxxxxxx
    ```
-3. Add to Streamlit Secrets:
-   ```toml
-   github_token = "ghp_YOUR_TOKEN_HERE"
-   gist_id = "GIST_ID_HERE"
-   ```
+4. Visit the Gist URL to see your results!
 
-## Troubleshooting
+---
 
-### "Secret 'github_token' not found"
-- Make sure you added the token to Streamlit Cloud Secrets
-- Make sure it's spelled exactly: `github_token`
-- Reboot the app after adding secrets
+## 📊 Step 5: View Your Results
 
-### "401 Unauthorized"
-- Your token might be expired or invalid
-- Generate a new token with `gist` scope
+1. Go to [gist.github.com](https://gist.github.com)
+2. Click on "Secret gists" (your results are private)
+3. Find `ahp_results.csv`
+4. Download or view online
 
-### "403 Forbidden"
-- Make sure you selected the `gist` scope when creating the token
+Each submission appends a new row to the CSV!
 
-## Security Notes
+---
 
-🔒 **Important:**
-- Never share your GitHub token
-- Never commit it to your repository
-- Keep it only in Streamlit Cloud Secrets
-- The token only has access to create/update gists (nothing else)
+## 🔒 Security Notes
 
-## What Gets Saved?
+- ✅ Gists are **private** by default (only you can see them)
+- ⚠️ Never commit your token to git
+- ⚠️ Use environment variables in production
 
-Each questionnaire completion adds one row to the CSV with:
-- Timestamp
-- All answers
-- All weights
-- Consistency metrics
+---
 
-You can download the CSV from GitHub, open in Excel, or use it for analysis!
+## 📈 CSV Format
+
+```csv
+timestamp,user_name,consistency_ratio,consistency_index,lambda_max,is_consistent,weight_Criterion1,weight_Criterion2,...
+2024-01-20 14:30:00,Ohad Dahan,0.0234,0.0123,5.045,True,0.3421,0.2156,...
+```
+
+Perfect for Excel, Google Sheets, or Python analysis!
+
+---
+
+## 🎉 You're Done!
+
+Now every questionnaire completion automatically saves to your GitHub Gist!
+
+View all results anytime at: **https://gist.github.com** → Secret gists → `ahp_results.csv`
