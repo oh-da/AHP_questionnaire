@@ -973,6 +973,18 @@ class AHPQuestionnaireApp:
 def main():
     """Application entry point with dependency injection."""
 
+    # Avoid noisy warnings when the script is executed directly via
+    # `python app.py` instead of `streamlit run app.py`. Streamlit's session
+    # state and secrets require a ScriptRunContext that only exists when the
+    # app is launched through the Streamlit CLI.
+    runtime = getattr(st, "runtime", None)
+    if runtime is None or not runtime.exists():
+        print(
+            "This app must be run with `streamlit run app.py` to enable "
+            "Streamlit features. Exiting."
+        )
+        return
+
     # Determine criteria source (CSV file or default)
     criteria_file = "criteria.csv"
     if os.path.exists(criteria_file):
