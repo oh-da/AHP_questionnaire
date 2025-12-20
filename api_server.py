@@ -13,7 +13,26 @@ CORS(app)
 
 # Environment configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GIST_ID = os.getenv("GIST_ID")
+
+
+def normalize_gist_id(raw_gist_id: Optional[str]) -> Optional[str]:
+    """Strip whitespace and accept either a plain ID or a full gist URL."""
+
+    if not raw_gist_id:
+        return None
+
+    cleaned = raw_gist_id.strip()
+    if not cleaned:
+        return None
+
+    # If a full gist URL was provided, take the final path component
+    if "/" in cleaned:
+        cleaned = cleaned.rstrip("/").split("/")[-1]
+
+    return cleaned
+
+
+GIST_ID = normalize_gist_id(os.getenv("GIST_ID"))
 GIST_FILENAME = os.getenv("GIST_FILENAME", "ahp_results.csv")
 PORT = int(os.getenv("PORT", "5000"))
 
@@ -174,11 +193,12 @@ def save_to_github_gist(row_data: Dict[str, Any]) -> Dict[str, Optional[str]]:
             "message": "Saved to GitHub Gist",
         }
 
+    error_detail = response.text
     return {
         "saved": False,
         "gist_url": None,
         "gist_id": gist_id,
-        "message": f"GitHub API error {response.status_code}",
+        "message": f"GitHub API error {response.status_code}: {error_detail}",
     }
 
 
