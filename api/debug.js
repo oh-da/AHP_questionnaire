@@ -19,3 +19,13 @@ export default async function handler(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+export default function Page() {
+  try {
+    // Your existing logic here
+    return (
+       <div>Your UI</div>
+    );
+  } catch (error) {
+    return <div style={{color: 'red'}}>Runtime Error: {error.message}</div>;
+  }
+}
