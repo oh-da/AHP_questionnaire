@@ -396,6 +396,7 @@ class GoogleSheetsPersistenceService:
         self.sheet_name = sheet_name
         self.client = None
         self.sheet = None
+        self.error_message = None  # Store error for debugging
         self._initialize_sheets()
 
     def _initialize_sheets(self):
@@ -403,6 +404,7 @@ class GoogleSheetsPersistenceService:
         try:
             # Check if Google Sheets credentials are configured
             if "gcp_service_account" not in st.secrets:
+                self.error_message = "Secret 'gcp_service_account' not found"
                 print("Google Sheets credentials not found in secrets")
                 return
 
@@ -431,6 +433,7 @@ class GoogleSheetsPersistenceService:
                     spreadsheet.share(st.secrets["admin_email"], perm_type='user', role='writer')
 
         except Exception as e:
+            self.error_message = str(e)
             print(f"Error initializing Google Sheets: {e}")
             self.client = None
             self.sheet = None
@@ -933,7 +936,10 @@ def main():
     else:
         persistence_service = PersistenceService(results_file="results.csv")
         print("⚠ Using local CSV (ephemeral on Streamlit Cloud)")
-        st.sidebar.warning("⚠️ Using local CSV (Google Sheets not configured)")
+        error_msg = "⚠️ Using local CSV (Google Sheets not configured)"
+        if sheets_service.error_message:
+            error_msg += f"\n\nError: {sheets_service.error_message}"
+        st.sidebar.warning(error_msg)
 
     # Inject dependencies into app
     app = AHPQuestionnaireApp(
