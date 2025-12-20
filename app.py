@@ -421,16 +421,30 @@ class GoogleSheetsPersistenceService:
 
             self.client = gspread.authorize(credentials)
 
-            # Open or create spreadsheet
-            try:
-                self.sheet = self.client.open(self.sheet_name).sheet1
-            except gspread.SpreadsheetNotFound:
-                # Create new spreadsheet
-                spreadsheet = self.client.create(self.sheet_name)
-                self.sheet = spreadsheet.sheet1
-                # Share with your email (from secrets)
-                if "admin_email" in st.secrets:
-                    spreadsheet.share(st.secrets["admin_email"], perm_type='user', role='writer')
+            # Open spreadsheet by ID (if provided) or by name
+            spreadsheet_id = st.secrets.get("spreadsheet_id", None)
+
+            if spreadsheet_id:
+                # Use provided spreadsheet ID
+                try:
+                    spreadsheet = self.client.open_by_key(spreadsheet_id)
+                    self.sheet = spreadsheet.sheet1
+                    print(f"✓ Opened spreadsheet by ID: {spreadsheet_id}")
+                except Exception as e:
+                    raise Exception(f"Could not open spreadsheet with ID '{spreadsheet_id}': {e}")
+            else:
+                # Fall back to opening by name (or creating new)
+                try:
+                    self.sheet = self.client.open(self.sheet_name).sheet1
+                    print(f"✓ Opened spreadsheet by name: {self.sheet_name}")
+                except gspread.SpreadsheetNotFound:
+                    # Create new spreadsheet
+                    spreadsheet = self.client.create(self.sheet_name)
+                    self.sheet = spreadsheet.sheet1
+                    # Share with your email (from secrets)
+                    if "admin_email" in st.secrets:
+                        spreadsheet.share(st.secrets["admin_email"], perm_type='user', role='writer')
+                    print(f"✓ Created new spreadsheet: {self.sheet_name}")
 
         except Exception as e:
             self.error_message = str(e)
