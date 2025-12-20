@@ -13,6 +13,7 @@ import numpy as np
 import json
 import os
 import requests
+from urllib.parse import urlparse
 
 
 # ============================================================================
@@ -391,6 +392,28 @@ class PersistenceService:
 class GitHubGistPersistenceService:
     """Handles saving questionnaire results to GitHub Gist (permanent, free storage)."""
 
+    @staticmethod
+    def _normalize_gist_id(raw_gist_id: Optional[str]) -> Optional[str]:
+        """Normalize gist IDs from env/secret, accepting full URLs as well."""
+
+        if not raw_gist_id:
+            return None
+
+        cleaned = raw_gist_id.strip()
+        if not cleaned:
+            return None
+
+        parsed = urlparse(cleaned)
+
+        if parsed.scheme and parsed.netloc:
+            cleaned = parsed.path.rstrip("/").split("/")[-1]
+        elif "/" in cleaned:
+            cleaned = cleaned.rstrip("/").split("/")[-1]
+
+        cleaned = cleaned.split("?")[0].split("#")[0]
+
+        return cleaned
+
     def __init__(self, gist_filename: str = "ahp_results.csv"):
         self.gist_filename = gist_filename
         self.github_token = None
@@ -404,14 +427,14 @@ class GitHubGistPersistenceService:
         try:
             # Prefer environment variables for platforms like Railway/Render
             token = os.getenv("GITHUB_TOKEN")
-            gist_id = os.getenv("GIST_ID")
+            gist_id = self._normalize_gist_id(os.getenv("GIST_ID"))
             secrets_error = None
 
             # Fall back to Streamlit secrets when running via `streamlit run`
             if not token:
                 try:
                     token = st.secrets.get("github_token", None)
-                    gist_id = st.secrets.get("gist_id", gist_id)
+                    gist_id = self._normalize_gist_id(st.secrets.get("gist_id", gist_id))
                 except Exception as exc:
                     # Avoid noisy "missing ScriptRunContext" errors in bare mode
                     secrets_error = str(exc)
