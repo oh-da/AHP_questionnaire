@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Settings, ArrowRight } from 'lucide-react';
+import ComparisonFlow from '../components/ComparisonFlow';
 
 // Default criteria from the Python app
 const DEFAULT_CRITERIA = [
@@ -16,14 +17,37 @@ export default function AHPQuestionnaire() {
   const [name, setName] = useState('Ohad Dahan');
   const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
   const [showSettings, setShowSettings] = useState(false);
+  const [started, setStarted] = useState(false);
 
   // Calculate number of pairwise comparisons: n(n-1)/2
   const numComparisons = (criteria.length * (criteria.length - 1)) / 2;
 
   const handleStart = () => {
-    // TODO: Navigate to comparison flow
-    console.log('Starting questionnaire with:', { name, criteria });
+    setStarted(true);
   };
+
+  const handleComplete = (answers, comparisons) => {
+    // Store results and navigate to results page
+    navigate('/results', {
+      state: {
+        answers,
+        comparisons,
+        criteria,
+        userName: name
+      }
+    });
+  };
+
+  // Show comparison flow if started
+  if (started) {
+    return (
+      <ComparisonFlow
+        criteria={criteria}
+        userName={name}
+        onComplete={handleComplete}
+      />
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
