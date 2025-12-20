@@ -13,7 +13,7 @@ import numpy as np
 import json
 import os
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
 
 # ============================================================================
@@ -406,15 +406,15 @@ class GoogleSheetsPersistenceService:
                 print("Google Sheets credentials not found in secrets")
                 return
 
-            # Set up credentials
-            scope = [
+            # Set up credentials with modern google-auth
+            scopes = [
                 'https://www.googleapis.com/auth/spreadsheets',
                 'https://www.googleapis.com/auth/drive'
             ]
 
-            credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+            credentials = Credentials.from_service_account_info(
                 st.secrets["gcp_service_account"],
-                scope
+                scopes=scopes
             )
 
             self.client = gspread.authorize(credentials)
