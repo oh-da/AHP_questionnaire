@@ -12,8 +12,7 @@ import pandas as pd
 import numpy as np
 import json
 import os
-import gspread
-from google.oauth2.service_account import Credentials
+import requests
 
 
 # ============================================================================
@@ -389,68 +388,53 @@ class PersistenceService:
             return False
 
 
-class GoogleSheetsPersistenceService:
-    """Handles saving questionnaire results to Google Sheets (permanent storage)."""
+class GitHubGistPersistenceService:
+    """Handles saving questionnaire results to GitHub Gist (permanent, free storage)."""
 
-    def __init__(self, sheet_name: str = "AHP Results"):
-        self.sheet_name = sheet_name
-        self.client = None
-        self.sheet = None
-        self.error_message = None  # Store error for debugging
-        self._initialize_sheets()
+    def __init__(self, gist_filename: str = "ahp_results.csv"):
+        self.gist_filename = gist_filename
+        self.github_token = None
+        self.gist_id = None
+        self.gist_url = None
+        self.error_message = None
+        self._initialize()
 
-    def _initialize_sheets(self):
-        """Initialize Google Sheets connection using Streamlit secrets."""
+    def _initialize(self):
+        """Initialize GitHub Gist connection using Streamlit secrets."""
         try:
-            # Check if Google Sheets credentials are configured
-            if "gcp_service_account" not in st.secrets:
-                self.error_message = "Secret 'gcp_service_account' not found"
-                print("Google Sheets credentials not found in secrets")
+            # Check if GitHub token is configured
+            if "github_token" not in st.secrets:
+                self.error_message = "Secret 'github_token' not found"
+                print("GitHub token not found in secrets")
                 return
 
-            # Set up credentials with modern google-auth
-            scopes = [
-                'https://www.googleapis.com/auth/spreadsheets',
-                'https://www.googleapis.com/auth/drive'
-            ]
+            self.github_token = st.secrets["github_token"]
+            self.gist_id = st.secrets.get("gist_id", None)
 
-            credentials = Credentials.from_service_account_info(
-                st.secrets["gcp_service_account"],
-                scopes=scopes
-            )
+            # Test the connection
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
 
-            self.client = gspread.authorize(credentials)
-
-            # Open spreadsheet by ID (if provided) or by name
-            spreadsheet_id = st.secrets.get("spreadsheet_id", None)
-
-            if spreadsheet_id:
-                # Use provided spreadsheet ID
-                try:
-                    spreadsheet = self.client.open_by_key(spreadsheet_id)
-                    self.sheet = spreadsheet.sheet1
-                    print(f"✓ Opened spreadsheet by ID: {spreadsheet_id}")
-                except Exception as e:
-                    raise Exception(f"Could not open spreadsheet with ID '{spreadsheet_id}': {e}")
+            if self.gist_id:
+                # Verify existing gist
+                response = requests.get(
+                    f"https://api.github.com/gists/{self.gist_id}",
+                    headers=headers
+                )
+                if response.status_code == 200:
+                    self.gist_url = response.json()["html_url"]
+                    print(f"✓ Connected to existing gist: {self.gist_id}")
+                else:
+                    raise Exception(f"Could not access gist {self.gist_id}: {response.text}")
             else:
-                # Fall back to opening by name (or creating new)
-                try:
-                    self.sheet = self.client.open(self.sheet_name).sheet1
-                    print(f"✓ Opened spreadsheet by name: {self.sheet_name}")
-                except gspread.SpreadsheetNotFound:
-                    # Create new spreadsheet
-                    spreadsheet = self.client.create(self.sheet_name)
-                    self.sheet = spreadsheet.sheet1
-                    # Share with your email (from secrets)
-                    if "admin_email" in st.secrets:
-                        spreadsheet.share(st.secrets["admin_email"], perm_type='user', role='writer')
-                    print(f"✓ Created new spreadsheet: {self.sheet_name}")
+                print("✓ GitHub token configured (will create gist on first save)")
 
         except Exception as e:
             self.error_message = str(e)
-            print(f"Error initializing Google Sheets: {e}")
-            self.client = None
-            self.sheet = None
+            print(f"Error initializing GitHub Gist: {e}")
+            self.github_token = None
 
     def save_results(
         self,
@@ -458,8 +442,8 @@ class GoogleSheetsPersistenceService:
         answers: Dict,
         results: AHPResults
     ) -> bool:
-        """Save questionnaire results to Google Sheets."""
-        if not self.sheet:
+        """Save questionnaire results to GitHub Gist."""
+        if not self.github_token:
             return False
 
         try:
@@ -474,48 +458,92 @@ class GoogleSheetsPersistenceService:
                 'is_consistent': results.is_consistent()
             }
 
-            # Add weights for each criterion
+            # Add weights
             for criterion in criteria:
                 row_data[f'weight_{criterion.name}'] = results.weights.get(criterion.name, 0)
 
-            # Add answers for each comparison
+            # Add answers
             for key, value in answers.items():
                 row_data[f'answer_{key}'] = value
 
-            # Get or create headers
-            existing_headers = self.sheet.row_values(1)
-            headers = list(row_data.keys())
+            # Convert to DataFrame and then CSV string
+            df_new = pd.DataFrame([row_data])
 
-            if not existing_headers:
-                # First row - add headers
-                self.sheet.append_row(headers)
-            elif existing_headers != headers:
-                # Headers changed (different criteria) - update
-                self.sheet.update('1:1', [headers])
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
 
-            # Append data row
-            values = [row_data[h] for h in headers]
-            self.sheet.append_row(values)
+            if self.gist_id:
+                # Update existing gist - append to CSV
+                response = requests.get(
+                    f"https://api.github.com/gists/{self.gist_id}",
+                    headers=headers
+                )
 
-            return True
+                if response.status_code == 200:
+                    gist_data = response.json()
+                    existing_content = gist_data["files"][self.gist_filename]["content"]
+
+                    # Append new row to existing CSV
+                    df_existing = pd.read_csv(pd.io.common.StringIO(existing_content))
+                    df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+                    csv_content = df_combined.to_csv(index=False)
+                else:
+                    # Gist not found, create new
+                    csv_content = df_new.to_csv(index=False)
+                    self.gist_id = None
+            else:
+                # First save - create new gist
+                csv_content = df_new.to_csv(index=False)
+
+            # Create or update gist
+            gist_data = {
+                "description": "AHP Questionnaire Results",
+                "public": False,
+                "files": {
+                    self.gist_filename: {
+                        "content": csv_content
+                    }
+                }
+            }
+
+            if self.gist_id:
+                # Update existing gist
+                response = requests.patch(
+                    f"https://api.github.com/gists/{self.gist_id}",
+                    headers=headers,
+                    json=gist_data
+                )
+            else:
+                # Create new gist
+                response = requests.post(
+                    "https://api.github.com/gists",
+                    headers=headers,
+                    json=gist_data
+                )
+
+            if response.status_code in [200, 201]:
+                response_data = response.json()
+                self.gist_id = response_data["id"]
+                self.gist_url = response_data["html_url"]
+                print(f"✓ Saved to gist: {self.gist_url}")
+                return True
+            else:
+                print(f"Error saving to gist: {response.text}")
+                return False
 
         except Exception as e:
-            print(f"Error saving to Google Sheets: {e}")
+            print(f"Error saving to GitHub Gist: {e}")
             return False
 
     def is_configured(self) -> bool:
-        """Check if Google Sheets is properly configured."""
-        return self.sheet is not None
+        """Check if GitHub Gist is properly configured."""
+        return self.github_token is not None
 
-    def get_spreadsheet_url(self) -> Optional[str]:
-        """Get the URL of the Google Sheets spreadsheet."""
-        if not self.sheet:
-            return None
-        try:
-            spreadsheet = self.client.open(self.sheet_name)
-            return spreadsheet.url
-        except:
-            return None
+    def get_gist_url(self) -> Optional[str]:
+        """Get the URL of the GitHub Gist."""
+        return self.gist_url
 
 
 # ============================================================================
@@ -807,8 +835,8 @@ class AHPQuestionnaireApp:
             )
             st.session_state.results_saved = True
             if save_success:
-                if isinstance(self.persistence_service, GoogleSheetsPersistenceService):
-                    st.success("✅ Results saved to Google Sheets permanently!")
+                if isinstance(self.persistence_service, GitHubGistPersistenceService):
+                    st.success("✅ Results saved to GitHub Gist permanently!")
                 else:
                     st.success("✅ Results saved to results.csv")
             else:
@@ -890,23 +918,23 @@ class AHPQuestionnaireApp:
                 except:
                     pass
 
-            # Google Sheets link if configured
-            if isinstance(self.persistence_service, GoogleSheetsPersistenceService):
+            # GitHub Gist link if configured
+            if isinstance(self.persistence_service, GitHubGistPersistenceService):
                 if self.persistence_service.is_configured():
                     st.markdown("---")
-                    st.markdown("### 📊 Google Sheets")
-                    url = self.persistence_service.get_spreadsheet_url()
+                    st.markdown("### 📊 GitHub Gist")
+                    url = self.persistence_service.get_gist_url()
                     if url:
-                        st.success("✅ Connected to Google Sheets")
-                        st.markdown(f"[📄 Open Results Spreadsheet]({url})")
+                        st.success("✅ Connected to GitHub Gist")
+                        st.markdown(f"[📄 View Results]({url})")
                         st.caption("All results are saved here permanently")
                     else:
-                        st.info("Google Sheets configured")
+                        st.info("GitHub Gist configured (will create on first save)")
 
             # Info about results storage
             st.markdown("---")
-            if isinstance(self.persistence_service, GoogleSheetsPersistenceService) and self.persistence_service.is_configured():
-                st.info("📊 Results are automatically saved to Google Sheets.")
+            if isinstance(self.persistence_service, GitHubGistPersistenceService) and self.persistence_service.is_configured():
+                st.info("📊 Results are automatically saved to GitHub Gist.")
             else:
                 st.info("📊 Results are saved to results.csv (download before app restarts).")
 
@@ -941,18 +969,18 @@ def main():
     calculator = AHPCalculator()
     export_service = ExportService()
 
-    # Use Google Sheets if configured, otherwise local CSV
-    sheets_service = GoogleSheetsPersistenceService(sheet_name="AHP Questionnaire Results")
-    if sheets_service.is_configured():
-        persistence_service = sheets_service
-        print("✓ Using Google Sheets for permanent storage")
-        st.sidebar.success("✅ Google Sheets connected!")
+    # Use GitHub Gist if configured, otherwise local CSV
+    gist_service = GitHubGistPersistenceService(gist_filename="ahp_results.csv")
+    if gist_service.is_configured():
+        persistence_service = gist_service
+        print("✓ Using GitHub Gist for permanent storage")
+        st.sidebar.success("✅ GitHub Gist connected!")
     else:
         persistence_service = PersistenceService(results_file="results.csv")
         print("⚠ Using local CSV (ephemeral on Streamlit Cloud)")
-        error_msg = "⚠️ Using local CSV (Google Sheets not configured)"
-        if sheets_service.error_message:
-            error_msg += f"\n\nError: {sheets_service.error_message}"
+        error_msg = "⚠️ Using local CSV (GitHub Gist not configured)"
+        if gist_service.error_message:
+            error_msg += f"\n\nError: {gist_service.error_message}"
         st.sidebar.warning(error_msg)
 
     # Inject dependencies into app
