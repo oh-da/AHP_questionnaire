@@ -1,6 +1,26 @@
 # AHP Questionnaire - Hub Prioritization
 
-## How to Run Locally
+A modern questionnaire application using the Analytic Hierarchy Process (AHP) for multi-criteria decision making.
+
+## 🆕 NEW: Modern React Frontend
+
+We now have a beautiful React frontend with Hebrew RTL support! See [frontend/README.md](frontend/README.md) for details.
+
+## Quick Start
+
+### Option 1: React Frontend with Flask API (Recommended - New Design!)
+
+```bash
+# Make script executable
+chmod +x run.sh
+
+# Run everything (builds React + starts Flask server)
+./run.sh
+```
+
+Then visit: **http://localhost:5000**
+
+### Option 2: Original Streamlit App
 
 ```bash
 # Install dependencies
@@ -10,7 +30,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The app will open in your browser at `http://localhost:8501`
+Then visit: **http://localhost:8501**
 
 ## Deploy to Streamlit Cloud
 
@@ -25,15 +45,24 @@ The app will automatically read criteria from `criteria.csv` and save results to
 
 ## Features
 
+### React Frontend
+- 🎨 Modern, clean UI with Tailwind CSS
+- 🇮🇱 Full Hebrew RTL support
+- 📱 Responsive design
+- 🎯 Interactive slider-based comparisons
+- 📊 Real-time weight calculation
+- ✅ Consistency checking (CR, CI, Lambda Max)
+- 📈 Beautiful bar chart visualizations
+- 💾 Download results as JSON
+
+### Streamlit Version (Legacy)
 - 📊 Interactive pairwise comparison questionnaire
 - 🧮 AHP weight calculation with consistency checking
 - 📈 Visual results with bar charts and tables
-- 💾 **Automatic result saving** - each completion appended to `results.csv`
+- 💾 Automatic result saving to `results.csv`
 - 📥 Export individual results to CSV or JSON
-- ⚙️ **Criteria configuration via CSV file** - edit `criteria.csv` to customize
-- 🔄 Automatic questionnaire generation for any number of criteria
+- ⚙️ Criteria configuration via CSV file
 - 🏗️ SOLID design principles throughout
-- ☁️ **Ready for Streamlit Cloud deployment**
 
 ## Customizing Criteria
 
