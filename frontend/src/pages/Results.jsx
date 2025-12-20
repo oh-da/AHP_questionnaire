@@ -25,13 +25,12 @@ export default function Results() {
         const apiResults = await calculateAHPWithAPI(userName, criteria, answers, comparisons);
 
         if (apiResults && !apiResults.error) {
-          // API call successful - results saved to GitHub Gist!
           setResults({
             ...apiResults,
             userName,
             criteria
           });
-          setSavedToGist(true);
+          setSavedToGist(Boolean(apiResults.savedToGist));
           setLoading(false);
           return;
         }
@@ -44,7 +43,8 @@ export default function Results() {
       setResults({
         ...calculatedResults,
         userName,
-        criteria
+        criteria,
+        savedToGist: false
       });
       setSavedToGist(false);
       setLoading(false);
@@ -131,23 +131,33 @@ export default function Results() {
         </div>
 
         {/* GitHub Gist Save Status */}
-        {savedToGist && (
+        {savedToGist ? (
           <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-            <div className="flex items-center justify-center gap-2 text-blue-800">
-              <CheckCircle2 className="w-5 h-5" />
-              <p className="font-medium">
-                התוצאות נשמרו ב-GitHub Gist בהצלחה! 🎉
-              </p>
+            <div className="flex flex-col gap-2 text-blue-800 items-center">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5" />
+                <p className="font-medium">
+                  התוצאות נשמרו ב-GitHub Gist בהצלחה! 🎉
+                </p>
+              </div>
+              {results.gistUrl && (
+                <a
+                  className="text-blue-700 underline text-sm"
+                  href={results.gistUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  צפייה בקובץ ה-Gist
+                </a>
+              )}
             </div>
           </div>
-        )}
-
-        {!savedToGist && (
+        ) : (
           <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
             <div className="flex items-center justify-center gap-2 text-amber-800">
               <AlertCircle className="w-5 h-5" />
               <p className="text-sm">
-                התוצאות חושבו מקומית (API לא זמין)
+                {results.message || 'התוצאות חושבו מקומית (API לא זמין)'}
               </p>
             </div>
           </div>

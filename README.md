@@ -20,6 +20,26 @@ chmod +x run.sh
 
 Then visit: **http://localhost:5000**
 
+### Option 3: Production Deployment (Vercel + Railway)
+
+Use the React frontend on **Vercel** and the Flask API on **Railway** with GitHub Gist persistence:
+
+1. **Deploy the API to Railway**
+   - Build command: `pip install -r requirements-api.txt`
+   - Start command: `python api_server.py`
+   - Environment variables:
+     - `GITHUB_TOKEN` (PAT with `gist` scope)
+     - `GIST_ID` (optional existing gist to append to)
+     - `GIST_FILENAME` (optional, defaults to `ahp_results.csv`)
+   - Railway auto-sets `PORT`; the server binds to it automatically.
+2. **Deploy the frontend to Vercel**
+   - Project directory: `frontend`
+   - Build command: `npm run build`
+   - Set env var `VITE_API_URL` to your Railway URL (e.g., `https://your-app.up.railway.app`).
+3. **Verify the flow**
+   - Submit a questionnaire on the Vercel site.
+   - Results are saved to GitHub Gist and retrievable via the `/api/results` endpoint.
+
 ### Option 2: Original Streamlit App
 
 ```bash
