@@ -19,6 +19,7 @@ export default function Results() {
       }
 
       const { answers, comparisons, criteria, userName } = location.state;
+      let apiErrorMessage = '';
 
       // Try API first (saves to GitHub Gist)
       try {
@@ -35,7 +36,8 @@ export default function Results() {
           return;
         }
       } catch (error) {
-        console.log('API not available, falling back to local calculation');
+        apiErrorMessage = error.message;
+        console.log('API not available, falling back to local calculation', error);
       }
 
       // Fallback to local calculation
@@ -44,7 +46,8 @@ export default function Results() {
         ...calculatedResults,
         userName,
         criteria,
-        savedToGist: false
+        savedToGist: false,
+        message: apiErrorMessage || 'התוצאות חושבו מקומית (API לא זמין)'
       });
       setSavedToGist(false);
       setLoading(false);
