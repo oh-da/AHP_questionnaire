@@ -402,14 +402,30 @@ class GitHubGistPersistenceService:
     def _initialize(self):
         """Initialize GitHub Gist connection using Streamlit secrets."""
         try:
-            # Check if GitHub token is configured
-            if "github_token" not in st.secrets:
-                self.error_message = "Secret 'github_token' not found"
-                print("GitHub token not found in secrets")
+            # Prefer environment variables for platforms like Railway/Render
+            token = os.getenv("GITHUB_TOKEN")
+            gist_id = os.getenv("GIST_ID")
+            secrets_error = None
+
+            # Fall back to Streamlit secrets when running via `streamlit run`
+            if not token:
+                try:
+                    token = st.secrets.get("github_token", None)
+                    gist_id = st.secrets.get("gist_id", gist_id)
+                except Exception as exc:
+                    # Avoid noisy "missing ScriptRunContext" errors in bare mode
+                    secrets_error = str(exc)
+
+            if not token:
+                missing_msg = "GitHub token not configured. Set GITHUB_TOKEN env var or streamlit secret 'github_token'."
+                if secrets_error:
+                    missing_msg += f" ({secrets_error})"
+                self.error_message = missing_msg
+                print(missing_msg)
                 return
 
-            self.github_token = st.secrets["github_token"]
-            self.gist_id = st.secrets.get("gist_id", None)
+            self.github_token = token
+            self.gist_id = gist_id
 
             # Test the connection
             headers = {
