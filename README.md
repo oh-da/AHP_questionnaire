@@ -1,92 +1,121 @@
-# AHP Questionnaire - Hub Prioritization
+# AHP Questionnaire Application
 
-A modern questionnaire application using the Analytic Hierarchy Process (AHP) for multi-criteria decision making.
+A modern, simplified AHP (Analytic Hierarchy Process) questionnaire application built with **SOLID principles**.
 
-## 🆕 NEW: Modern React Frontend
+## 🎯 Features
 
-We now have a beautiful React frontend with Hebrew RTL support! See [frontend/README.md](frontend/README.md) for details.
+- **Modern React Frontend** with TailwindCSS
+- **SOLID-based Backend** with Flask
+- **GitHub Gist Integration** for permanent result storage
+- **Clean Architecture** with dependency injection
+- **Type-safe** data models and interfaces
 
-## Quick Start
+## 🏗️ Architecture
 
-### Option 1: React Frontend with Flask API (Recommended - New Design!)
+### Backend (SOLID Principles)
 
-```bash
-# Make script executable
-chmod +x run.sh
-
-# Run everything (builds React + starts Flask server)
-./run.sh
+```
+backend/
+├── models.py           # Domain models (Data structures)
+├── interfaces.py       # Abstract base classes (Contracts)
+├── ahp_calculator.py   # AHP calculation logic
+├── persistence.py      # GitHub Gist + In-memory storage
+├── criteria_loader.py  # Criteria loading service
+├── services.py         # Business logic orchestration
+├── api.py              # Flask HTTP API
+└── main.py             # Application entry point (DI)
 ```
 
-Then visit: **http://localhost:5000**
+**SOLID Principles Applied:**
 
-### Option 3: Production Deployment (Vercel + Railway)
+1. **Single Responsibility**: Each class has one clear purpose
+   - `AHPCalculator`: Pure calculation logic
+   - `GitHubGistPersistence`: Data storage only
+   - `AHPQuestionnaireAPI`: HTTP routing only
 
-Use the React frontend on **Vercel** and the Flask API on **Railway** with GitHub Gist persistence:
+2. **Open/Closed**: Extend without modifying
+   - New calculators can implement `IAHPCalculator`
+   - New storage backends can implement `IPersistenceService`
 
-1. **Deploy the API to Railway**
-   - Build command: `pip install -r requirements-api.txt`
-   - Start command: `python api_server.py`
-   - Environment variables:
-     - `GITHUB_TOKEN` (PAT with `gist` scope)
-     - `GIST_ID` (optional existing gist to append to)
-     - `GIST_FILENAME` (optional, defaults to `ahp_results.csv`)
-   - Railway auto-sets `PORT`; the server binds to it automatically.
-2. **Deploy the frontend to Vercel**
-   - Project directory: `frontend`
-   - Build command: `npm run build`
-   - Set env var `VITE_API_URL` to your Railway URL (e.g., `https://your-app.up.railway.app`).
-3. **Verify the flow**
-   - Submit a questionnaire on the Vercel site.
-   - Results are saved to GitHub Gist and retrievable via the `/api/results` endpoint.
+3. **Liskov Substitution**: Interfaces are interchangeable
+   - `GitHubGistPersistence` ↔ `InMemoryPersistence`
+   - Both implement `IPersistenceService`
 
-### Option 2: Original Streamlit App
+4. **Interface Segregation**: Focused interfaces
+   - `IAHPCalculator`: Only calculation methods
+   - `IPersistenceService`: Only persistence methods
+   - `ICriteriaLoader`: Only loading methods
+
+5. **Dependency Inversion**: Depend on abstractions
+   - `AHPQuestionnaireService` depends on interfaces
+   - Concrete implementations injected at runtime
+
+### Frontend
+
+```
+frontend/
+├── src/
+│   ├── components/     # React components
+│   ├── pages/          # Page components
+│   ├── api/            # API client
+│   └── utils/          # Utilities
+└── ...
+```
+
+## 🚀 Quick Start
+
+### Backend
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-backend.txt
 
-# Run the application
-streamlit run app.py
+# Set up GitHub Gist (optional)
+export GITHUB_TOKEN="your_github_token"
+export GIST_ID="your_gist_id"  # Optional, will create new if not set
+
+# Start server
+python -m backend.main
+
+# Or use the startup script
+chmod +x start_backend.sh
+./start_backend.sh
 ```
 
-Then visit: **http://localhost:8501**
+### Frontend
 
-## Deploy to Streamlit Cloud
+```bash
+cd frontend
 
-1. Push this repository to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your GitHub account
-4. Select this repository and branch
-5. Set main file path: `app.py`
-6. Deploy!
+# Install dependencies
+npm install
 
-The app will automatically read criteria from `criteria.csv` and save results to `results.csv`.
+# Set API URL (optional)
+echo "VITE_API_URL=http://localhost:5000" > .env
 
-## Features
+# Start development server
+npm run dev
 
-### React Frontend
-- 🎨 Modern, clean UI with Tailwind CSS
-- 🇮🇱 Full Hebrew RTL support
-- 📱 Responsive design
-- 🎯 Interactive slider-based comparisons
-- 📊 Real-time weight calculation
-- ✅ Consistency checking (CR, CI, Lambda Max)
-- 📈 Beautiful bar chart visualizations
-- 💾 Download results as JSON
+# Build for production
+npm run build
+```
 
-### Streamlit Version (Legacy)
-- 📊 Interactive pairwise comparison questionnaire
-- 🧮 AHP weight calculation with consistency checking
-- 📈 Visual results with bar charts and tables
-- 💾 Automatic result saving to `results.csv`
-- 📥 Export individual results to CSV or JSON
-- ⚙️ Criteria configuration via CSV file
-- 🏗️ SOLID design principles throughout
+## 🔧 Configuration
 
-## Customizing Criteria
+### Environment Variables
 
-Edit `criteria.csv` to define your own criteria:
+**Backend:**
+- `GITHUB_TOKEN`: GitHub personal access token (for Gist storage)
+- `GIST_ID`: Existing Gist ID (optional, creates new if not set)
+- `GIST_FILENAME`: Filename in Gist (default: `ahp_results.csv`)
+- `PORT`: Server port (default: `5000`)
+
+**Frontend:**
+- `VITE_API_URL`: Backend API URL (default: `http://localhost:5000`)
+
+### Criteria Configuration
+
+Create `criteria.csv` in the root directory:
 
 ```csv
 Criterion
@@ -97,9 +126,54 @@ Population & Jobs
 Bus Terminal
 ```
 
-The questionnaire will automatically generate all pairwise comparisons based on the criteria in this file.
+## 📡 API Endpoints
 
-## Data Storage
+- `GET /api/health` - Health check
+- `GET /api/criteria` - Get questionnaire criteria
+- `GET /api/results` - Get all saved results
+- `POST /api/calculate` - Calculate AHP weights and save
 
-- **criteria.csv**: Define questionnaire criteria (editable)
-- **results.csv**: Stores all completed questionnaires with timestamp (auto-generated)
+## 🧪 Testing
+
+```bash
+# Backend tests
+pytest backend/
+
+# Frontend tests
+cd frontend && npm test
+```
+
+## 📦 Deployment
+
+### Backend (Railway/Render/Heroku)
+
+1. Set environment variables: `GITHUB_TOKEN`, `GIST_ID`
+2. Deploy with: `python -m backend.main`
+
+### Frontend (Vercel/Netlify)
+
+1. Set environment variable: `VITE_API_URL`
+2. Build command: `npm run build`
+3. Output directory: `dist`
+
+## 🔄 Migration from Old Code
+
+The old monolithic files are deprecated:
+- ❌ `app.py` (Streamlit) → Use React frontend
+- ❌ `api_server.py` (Monolithic Flask) → Use `backend/` module
+
+## 🤝 Contributing
+
+Contributions welcome! The architecture makes it easy to:
+
+- Add new calculators (implement `IAHPCalculator`)
+- Add new storage backends (implement `IPersistenceService`)
+- Extend without modifying existing code
+
+## 📄 License
+
+MIT License
+
+---
+
+Built with ❤️ using SOLID principles
