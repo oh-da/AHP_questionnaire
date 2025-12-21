@@ -44,6 +44,24 @@ export async function calculateAHPWithAPI(userName, criteria, answers, compariso
 }
 
 /**
+ * Fetch criteria from API
+ */
+export async function fetchCriteria() {
+  let response;
+
+  try {
+    response = await fetch(`${API_URL}/api/criteria`);
+  } catch (error) {
+    throw new Error(`Unable to reach API at ${API_URL}: ${error.message}`);
+  }
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+  const data = await response.json();
+  return data.criteria || [];
+}
+
+/**
  * Fetch all saved results from API
  */
 export async function fetchResults() {
