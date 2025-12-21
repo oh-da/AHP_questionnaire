@@ -101,10 +101,13 @@ export default function AHPQuestionnaire() {
           <h2 className="text-4xl font-bold text-slate-900 mb-4">
             שאלון AHP
           </h1>
+          <h3 className="text-4xl font-bold text-slate-900 mb-4">
+            שאלון AHP
+          </h3>
 
           {/* Subtitle */}
           <p className="text-slate-600 text-lg leading-relaxed max-w-xl mx-auto">
-            הענקת משקל לקריטריונים על בסיס תהליך השוואת זוגות
+            תהליך הערכת קריטריונים באמצעות השוואת זוגות
           </p>
         </div>
 
