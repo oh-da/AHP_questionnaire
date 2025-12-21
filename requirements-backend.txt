@@ -1,0 +1,14 @@
+# AHP Questionnaire Backend Dependencies
+# Simplified SOLID-based architecture
+
+# Core
+flask==3.0.0
+flask-cors==4.0.0
+numpy==1.26.2
+pandas==2.1.4
+
+# HTTP client for GitHub API
+requests==2.31.0
+
+# Optional: Production server
+gunicorn==21.2.0
