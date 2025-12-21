@@ -98,9 +98,9 @@ export default function AHPQuestionnaire() {
           <h1 className="text-4xl font-bold text-slate-900 mb-4">
             תעדוף מתח״מים
             </h1>
-          <h3 className="text-4xl font-bold text-slate-900 mb-4">
+          <h2 className="text-4xl font-bold text-slate-900 mb-4">
             שאלון AHP
-          </h3>
+          </h2>
 
           {/* Subtitle */}
           <p className="text-slate-600 text-lg leading-relaxed max-w-xl mx-auto">
