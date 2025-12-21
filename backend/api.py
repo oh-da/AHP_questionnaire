@@ -18,7 +18,16 @@ class AHPQuestionnaireAPI:
         """Initialize API with service dependency."""
         self.service = service
         self.app = Flask(__name__)
-        CORS(self.app)
+
+        # Configure CORS to handle preflight requests
+        CORS(self.app, resources={
+            r"/api/*": {
+                "origins": "*",
+                "methods": ["GET", "POST", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"]
+            }
+        })
+
         self._register_routes()
 
     def _register_routes(self):
@@ -41,9 +50,13 @@ class AHPQuestionnaireAPI:
             results = self.service.get_all_responses()
             return jsonify(results)
 
-        @self.app.route("/api/calculate", methods=["POST"])
+        @self.app.route("/api/calculate", methods=["POST", "OPTIONS"])
         def calculate_and_save():
             """Calculate AHP weights and save to storage."""
+            # Handle CORS preflight request
+            if request.method == "OPTIONS":
+                return "", 204
+
             try:
                 # Parse request
                 payload = request.get_json(silent=True) or {}
