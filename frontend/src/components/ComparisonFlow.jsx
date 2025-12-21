@@ -99,12 +99,36 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
       return `linear-gradient(to right, ${lightGray} 0%, ${lightGray} 48%, ${color} 48%, ${color} 52%, ${lightGray} 52%, ${lightGray} 100%)`;
     } else if (currentAnswer < 0) {
       // Moving left - fill from center to left
-      const fillPercent = centerPercent - ((currentAnswer + 8) / 16) * 50;
-      return `linear-gradient(to right, ${color} 0%, ${color} ${fillPercent}%, ${lightGray} ${fillPercent}%, ${lightGray} 100%)`;
+      const fillStart = centerPercent + (currentAnswer / 8) * centerPercent; // Will be < 50
+      return `linear-gradient(to right, ${lightGray} 0%, ${lightGray} ${fillStart}%, ${color} ${fillStart}%, ${color} ${centerPercent}%, ${lightGray} ${centerPercent}%, ${lightGray} 100%)`;
     } else {
       // Moving right - fill from center to right
-      const fillPercent = centerPercent + (currentAnswer / 8) * 50;
-      return `linear-gradient(to right, ${lightGray} 0%, ${lightGray} ${centerPercent}%, ${color} ${centerPercent}%, ${color} ${fillPercent}%, ${lightGray} ${fillPercent}%, ${lightGray} 100%)`;
+      const fillEnd = centerPercent + (currentAnswer / 8) * centerPercent; // Will be > 50
+      return `linear-gradient(to right, ${lightGray} 0%, ${lightGray} ${centerPercent}%, ${color} ${centerPercent}%, ${color} ${fillEnd}%, ${lightGray} ${fillEnd}%, ${lightGray} 100%)`;
+    }
+  };
+
+  // Get background color for criterion based on importance
+  const getCriterionBgColor = (isLeftCriterion) => {
+    if (currentAnswer === 0) {
+      return 'rgb(0, 128, 0)'; // Green for equal
+    }
+
+    const absValue = Math.abs(currentAnswer);
+    const intensity = absValue / 8;
+
+    // Check if this criterion is the more important one
+    const isImportant = (isLeftCriterion && currentAnswer < 0) || (!isLeftCriterion && currentAnswer > 0);
+
+    if (isImportant) {
+      // This criterion is more important - interpolate from green to red
+      const r = Math.round(0 + intensity * 220);
+      const g = Math.round(128 - intensity * 128);
+      const b = Math.round(0 + intensity * 38);
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      // This criterion is less important - keep it green
+      return 'rgb(0, 128, 0)';
     }
   };
 
@@ -154,7 +178,13 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
             <div className="flex items-center justify-between gap-8 mb-8">
               {/* Left criterion */}
               <div className="flex-1 text-center">
-                <div className="text-lg font-semibold text-slate-900">
+                <div
+                  className="text-lg font-semibold px-6 py-4 rounded-xl transition-all duration-300"
+                  style={{
+                    backgroundColor: getCriterionBgColor(true),
+                    color: 'white'
+                  }}
+                >
                   {currentComparison.criterionA}
                 </div>
               </div>
@@ -166,7 +196,13 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
 
               {/* Right criterion */}
               <div className="flex-1 text-center">
-                <div className="text-lg font-semibold text-slate-900">
+                <div
+                  className="text-lg font-semibold px-6 py-4 rounded-xl transition-all duration-300"
+                  style={{
+                    backgroundColor: getCriterionBgColor(false),
+                    color: 'white'
+                  }}
+                >
                   {currentComparison.criterionB}
                 </div>
               </div>
