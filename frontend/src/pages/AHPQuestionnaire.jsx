@@ -96,12 +96,15 @@ export default function AHPQuestionnaire() {
 
           {/* Title */}
           <h1 className="text-4xl font-bold text-slate-900 mb-4">
-            שאלון AHP
+            תעדוף מתח״מים
           </h1>
+          <h3 className="text-4xl font-bold text-slate-900 mb-4">
+            שאלון AHP
+          </h3>
 
           {/* Subtitle */}
           <p className="text-slate-600 text-lg leading-relaxed max-w-xl mx-auto">
-            תנדוד קריטריונים באמצעות תהליך האירלוכיה האנליטית דרך השואלות זוגית
+            תהליך הערכת קריטריונים באמצעות השוואת זוגות
           </p>
         </div>
 
@@ -114,10 +117,10 @@ export default function AHPQuestionnaire() {
             </label>
             <input
               type="text"
-              value={name}
+              value=״שם״
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="הכנס את שמך"
+              placeholder="הכניסו את השם"
             />
           </div>
 
@@ -141,7 +144,7 @@ export default function AHPQuestionnaire() {
 
             {/* Comparison Count */}
             <p className="text-slate-500 text-sm">
-              תצטרך {numComparisons} השוואות זוגיות
+              יידרשו {numComparisons} השוואות זוגיות
             </p>
           </div>
 
