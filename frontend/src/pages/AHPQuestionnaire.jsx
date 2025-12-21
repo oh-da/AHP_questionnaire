@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Settings, ArrowRight } from 'lucide-react';
 import ComparisonFlow from '../components/ComparisonFlow';
+import { fetchCriteria } from '../api/ahpAPI';
 
-// Default criteria from the Python app
+// Default criteria from the Python app (fallback if API unavailable)
 const DEFAULT_CRITERIA = [
   'Passenger Activity',
   'Service & Modes',
@@ -18,6 +19,26 @@ export default function AHPQuestionnaire() {
   const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
   const [showSettings, setShowSettings] = useState(false);
   const [started, setStarted] = useState(false);
+  const [loadingCriteria, setLoadingCriteria] = useState(true);
+
+  // Fetch criteria from API on mount
+  useEffect(() => {
+    async function loadCriteria() {
+      try {
+        const criteriasFromAPI = await fetchCriteria();
+        if (criteriasFromAPI && criteriasFromAPI.length >= 2) {
+          setCriteria(criteriasFromAPI);
+        }
+      } catch (error) {
+        console.log('Failed to load criteria from API, using defaults:', error);
+        // Keep DEFAULT_CRITERIA
+      } finally {
+        setLoadingCriteria(false);
+      }
+    }
+
+    loadCriteria();
+  }, []);
 
   // Calculate number of pairwise comparisons: n(n-1)/2
   const numComparisons = (criteria.length * (criteria.length - 1)) / 2;
@@ -46,6 +67,18 @@ export default function AHPQuestionnaire() {
         userName={name}
         onComplete={handleComplete}
       />
+    );
+  }
+
+  // Show loading state while fetching criteria
+  if (loadingCriteria) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">טוען קריטריונים...</p>
+        </div>
+      </div>
     );
   }
 
