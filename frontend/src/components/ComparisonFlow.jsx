@@ -75,6 +75,39 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
     }
   };
 
+  // Calculate color based on importance (green = equal, red = most important)
+  const getSliderColor = () => {
+    const absValue = Math.abs(currentAnswer);
+    const intensity = absValue / 8; // 0 to 1
+
+    // Interpolate from green (0,128,0) to red (220,38,38)
+    const r = Math.round(0 + intensity * 220);
+    const g = Math.round(128 - intensity * 128);
+    const b = Math.round(0 + intensity * 38);
+
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+  // Calculate slider background gradient
+  const getSliderBackground = () => {
+    const centerPercent = 50; // Center of slider
+    const color = getSliderColor();
+    const lightGray = '#e2e8f0';
+
+    if (currentAnswer === 0) {
+      // Equal - show minimal green in center
+      return `linear-gradient(to right, ${lightGray} 0%, ${lightGray} 48%, ${color} 48%, ${color} 52%, ${lightGray} 52%, ${lightGray} 100%)`;
+    } else if (currentAnswer < 0) {
+      // Moving left - fill from center to left
+      const fillPercent = centerPercent - ((currentAnswer + 8) / 16) * 50;
+      return `linear-gradient(to right, ${color} 0%, ${color} ${fillPercent}%, ${lightGray} ${fillPercent}%, ${lightGray} 100%)`;
+    } else {
+      // Moving right - fill from center to right
+      const fillPercent = centerPercent + (currentAnswer / 8) * 50;
+      return `linear-gradient(to right, ${lightGray} 0%, ${lightGray} ${centerPercent}%, ${color} ${centerPercent}%, ${color} ${fillPercent}%, ${lightGray} ${fillPercent}%, ${lightGray} 100%)`;
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 p-6">
       <div className="max-w-4xl mx-auto">
@@ -150,11 +183,8 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
                   onChange={(e) => handleSliderChange(parseInt(e.target.value))}
                   className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
                   style={{
-                    background: `linear-gradient(to right,
-                      #e2e8f0 0%,
-                      #e2e8f0 ${((currentAnswer + 8) / 16) * 100}%,
-                      #1e293b ${((currentAnswer + 8) / 16) * 100}%,
-                      #1e293b 100%)`
+                    background: getSliderBackground(),
+                    '--thumb-color': getSliderColor()
                   }}
                 />
 
@@ -220,7 +250,7 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
           height: 20px;
           border-radius: 50%;
           background: white;
-          border: 3px solid #1e293b;
+          border: 3px solid var(--thumb-color, #1e293b);
           cursor: pointer;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -230,7 +260,7 @@ export default function ComparisonFlow({ criteria, userName, onComplete }) {
           height: 20px;
           border-radius: 50%;
           background: white;
-          border: 3px solid #1e293b;
+          border: 3px solid var(--thumb-color, #1e293b);
           cursor: pointer;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
