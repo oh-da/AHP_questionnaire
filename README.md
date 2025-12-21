@@ -10,6 +10,7 @@ A modern, simplified AHP (Analytic Hierarchy Process) questionnaire application 
 - ⚡ **[QUICK_START.md](QUICK_START.md)** - 5-minute setup for experienced developers
 - 🎨 **[VISUAL_GUIDE.md](VISUAL_GUIDE.md)** - Visual walkthrough with diagrams
 - 📊 **[INSTALLATION_FLOWCHART.md](INSTALLATION_FLOWCHART.md)** - Flowchart-based setup guide
+- 🚀 **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** - Deploy to Vercel & Railway
 - 📇 **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete documentation index
 - 📚 **Below** - Full documentation and architecture details
 
@@ -156,16 +157,21 @@ cd frontend && npm test
 
 ## 📦 Deployment
 
-### Backend (Railway/Render/Heroku)
+**New to deployment?** Check our complete guide:
+- 🚀 **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** - Step-by-step Vercel + Railway deployment
 
-1. Set environment variables: `GITHUB_TOKEN`, `GIST_ID`
-2. Deploy with: `python -m backend.main`
+### Quick Reference
 
-### Frontend (Vercel/Netlify)
+**Backend (Railway/Render/Heroku):**
+1. Set environment variables: `GITHUB_TOKEN`, `GIST_ID`, `PORT`
+2. Build: `pip install -r requirements-backend.txt`
+3. Start: `python -m backend.main`
 
-1. Set environment variable: `VITE_API_URL`
+**Frontend (Vercel/Netlify):**
+1. Root directory: `frontend`
 2. Build command: `npm run build`
 3. Output directory: `dist`
+4. Environment variable: `VITE_API_URL` (your backend URL)
 
 ## 🔄 Migration from Old Code
 

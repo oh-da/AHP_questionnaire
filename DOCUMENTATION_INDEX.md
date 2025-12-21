@@ -12,6 +12,7 @@ Choose based on your experience level:
 | **[GETTING_STARTED.md](GETTING_STARTED.md)** | Complete beginners | 15-30 minutes |
 | **[VISUAL_GUIDE.md](VISUAL_GUIDE.md)** | Visual learners | 10 minutes |
 | **[INSTALLATION_FLOWCHART.md](INSTALLATION_FLOWCHART.md)** | Step-by-step followers | 15 minutes |
+| **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** | Deploy to production | 30-45 minutes |
 
 ## 📖 Main Documentation
 
@@ -30,6 +31,15 @@ Choose based on your experience level:
   - SOLID principles examples
   - Code metrics
   - Architecture decisions
+
+### Deployment Documentation
+
+- **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** - Deploy to production (Vercel + Railway)
+  - Complete beginner's deployment guide
+  - Vercel setup for frontend
+  - Railway setup for backend
+  - Environment variables configuration
+  - Troubleshooting and monitoring
 
 ### Deprecated Code
 
@@ -71,7 +81,8 @@ Choose based on your experience level:
 → Understand the SOLID principles in **[README.md](README.md)**
 
 #### ...deploy to production
-→ See **[README.md](README.md)** - Deployment section
+→ Read **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** - Complete deployment guide
+→ Or **[README.md](README.md)** - Deployment section (quick reference)
 
 #### ...migrate from old code
 → Read **[deprecated/README.md](deprecated/README.md)**
@@ -87,6 +98,9 @@ Documentation/
 ├── Visual Guides
 │   ├── VISUAL_GUIDE.md (🎨 Illustrations)
 │   └── INSTALLATION_FLOWCHART.md (📊 Flowcharts)
+│
+├── Deployment
+│   └── DEPLOYMENT_GUIDE_BEGINNERS.md (🚀 Deploy to production)
 │
 ├── Technical Docs
 │   ├── README.md (📚 Main documentation)
@@ -149,6 +163,15 @@ Documentation/
 - Quick troubleshooting
 - Visual flow of installation process
 
+### DEPLOYMENT_GUIDE_BEGINNERS.md
+**Production deployment guide** covering:
+- Vercel frontend deployment
+- Railway backend deployment
+- Environment variables setup
+- Custom domains (optional)
+- Monitoring and troubleshooting
+- Free tier information
+
 ### README.md
 **Main documentation** including:
 - Feature overview
@@ -187,7 +210,7 @@ Documentation/
 | Why was it refactored? | [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md) |
 | Port 5000 is in use? | [GETTING_STARTED.md](GETTING_STARTED.md) Troubleshooting |
 | Can't connect to backend? | [GETTING_STARTED.md](GETTING_STARTED.md) Troubleshooting |
-| How do I deploy? | [README.md](README.md) Deployment section |
+| How do I deploy? | [DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md) |
 | Where's the old code? | [deprecated/](deprecated/) folder |
 
 ## 🎯 File Sizes & Read Times
@@ -198,6 +221,7 @@ Documentation/
 | GETTING_STARTED.md | ~15 pages | 15 min |
 | VISUAL_GUIDE.md | ~10 pages | 10 min |
 | INSTALLATION_FLOWCHART.md | ~5 pages | 5 min |
+| DEPLOYMENT_GUIDE_BEGINNERS.md | ~20 pages | 30 min |
 | README.md | ~8 pages | 10 min |
 | REFACTORING_SUMMARY.md | ~12 pages | 20 min |
 | deprecated/README.md | ~2 pages | 3 min |
