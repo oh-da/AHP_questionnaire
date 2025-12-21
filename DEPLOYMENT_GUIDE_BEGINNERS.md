@@ -24,6 +24,8 @@ Before starting:
 
 ## 🎯 Overview: What We're Deploying
 
+**Note:** This guide covers **Railway + Vercel** deployment. For Docker deployment, see [DOCKER_README.md](DOCKER_README.md).
+
 ```
 ┌─────────────────────────────────────────────┐
 │           Users Access Via Browser          │
