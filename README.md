@@ -157,13 +157,25 @@ cd frontend && npm test
 
 ## 📦 Deployment
 
-**New to deployment?** Check our complete guide:
-- 🚀 **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** - Step-by-step Vercel + Railway deployment
+**New to deployment?** Check our guides:
+- 🚀 **[DEPLOYMENT_GUIDE_BEGINNERS.md](DEPLOYMENT_GUIDE_BEGINNERS.md)** - Vercel + Railway
+- 🐳 **[DOCKER_README.md](DOCKER_README.md)** - Docker (self-hosting)
 
 ### Quick Reference
 
-**Backend (Railway/Render/Heroku):**
-1. Set environment variables: `GITHUB_TOKEN`, `GIST_ID`, `PORT`
+**Backend Options:**
+
+**Railway (Recommended):**
+- Connect GitHub → Auto-deploys from config files
+- Set env vars: `GITHUB_TOKEN`, `GIST_ID`
+
+**Docker:**
+```bash
+docker-compose up -d
+```
+
+**Manual:**
+1. Set env vars: `GITHUB_TOKEN`, `GIST_ID`, `PORT`
 2. Build: `pip install -r requirements-backend.txt`
 3. Start: `python -m backend.main`
 
@@ -171,7 +183,7 @@ cd frontend && npm test
 1. Root directory: `frontend`
 2. Build command: `npm run build`
 3. Output directory: `dist`
-4. Environment variable: `VITE_API_URL` (your backend URL)
+4. Environment variable: `VITE_API_URL`
 
 ## 🔄 Migration from Old Code
 
