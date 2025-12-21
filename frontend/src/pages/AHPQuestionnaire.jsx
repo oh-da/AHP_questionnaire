@@ -117,10 +117,10 @@ export default function AHPQuestionnaire() {
             </label>
             <input
               type="text"
-              value={name}
+              value=״שם״
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="הכנס את שמך"
+              placeholder="הכניסו את השם"
             />
           </div>
 
@@ -144,7 +144,7 @@ export default function AHPQuestionnaire() {
 
             {/* Comparison Count */}
             <p className="text-slate-500 text-sm">
-              תצטרך {numComparisons} השוואות זוגיות
+              יידרשו {numComparisons} השוואות זוגיות
             </p>
           </div>
 
