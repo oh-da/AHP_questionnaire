@@ -97,10 +97,7 @@ export default function AHPQuestionnaire() {
           {/* Title */}
           <h1 className="text-4xl font-bold text-slate-900 mb-4"
             תעדוף מתח״מים
-            </div>h1>
-          <h2 className="text-4xl font-bold text-slate-900 mb-4">
-            שאלון AHP
-          </h1>
+            </h1>
           <h3 className="text-4xl font-bold text-slate-900 mb-4">
             שאלון AHP
           </h3>
