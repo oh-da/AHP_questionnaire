@@ -95,7 +95,7 @@ export default function AHPQuestionnaire() {
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">
+          <h1 className="text-4xl font-bold text-slate-800 mb-4">
             תעדוף מתח״מים
             </h1>
           <h2 className="text-4xl font-bold text-slate-900 mb-4">
