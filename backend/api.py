@@ -19,14 +19,21 @@ class AHPQuestionnaireAPI:
         self.service = service
         self.app = Flask(__name__)
 
-        # Configure CORS to handle preflight requests
-        CORS(self.app, resources={
-            r"/api/*": {
-                "origins": "*",
-                "methods": ["GET", "POST", "OPTIONS"],
-                "allow_headers": ["Content-Type", "Authorization"]
-            }
-        })
+        # Configure CORS with comprehensive settings
+        CORS(self.app,
+             resources={r"/api/*": {"origins": "*"}},
+             allow_headers=["Content-Type", "Authorization"],
+             methods=["GET", "POST", "OPTIONS"],
+             supports_credentials=False,
+             max_age=3600)
+
+        # Add after_request handler for explicit CORS headers
+        @self.app.after_request
+        def after_request(response):
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+            return response
 
         self._register_routes()
 
@@ -53,9 +60,13 @@ class AHPQuestionnaireAPI:
         @self.app.route("/api/calculate", methods=["POST", "OPTIONS"])
         def calculate_and_save():
             """Calculate AHP weights and save to storage."""
-            # Handle CORS preflight request
+            # Handle CORS preflight request explicitly
             if request.method == "OPTIONS":
-                return "", 204
+                response = jsonify({"status": "ok"})
+                response.headers.add("Access-Control-Allow-Origin", "*")
+                response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+                response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+                return response, 200
 
             try:
                 # Parse request
