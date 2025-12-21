@@ -13,11 +13,11 @@ class CSVCriteriaLoader(ICriteriaLoader):
     """Load criteria from CSV file."""
 
     DEFAULT_CRITERIA = [
-        "Passenger Activity",
-        "Service & Modes",
-        "Location",
-        "Population & Jobs",
-        "Bus Terminal"
+        "פעילות נוסעים",
+        "היקף השירות ומגוון האמצעים",
+        "מיקום",
+        "כיסוי אוכלוסייה ומועסקים",
+        "סמיכות למסוף אוטובוסים"
     ]
 
     def __init__(self, csv_file: str = "criteria.csv"):
