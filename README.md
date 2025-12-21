@@ -2,6 +2,17 @@
 
 A modern, simplified AHP (Analytic Hierarchy Process) questionnaire application built with **SOLID principles**.
 
+## 🚀 Getting Started
+
+**New to this project?** Choose your guide:
+
+- 📘 **[GETTING_STARTED.md](GETTING_STARTED.md)** - Complete step-by-step guide for beginners (A to Z)
+- ⚡ **[QUICK_START.md](QUICK_START.md)** - 5-minute setup for experienced developers
+- 🎨 **[VISUAL_GUIDE.md](VISUAL_GUIDE.md)** - Visual walkthrough with diagrams
+- 📊 **[INSTALLATION_FLOWCHART.md](INSTALLATION_FLOWCHART.md)** - Flowchart-based setup guide
+- 📇 **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete documentation index
+- 📚 **Below** - Full documentation and architecture details
+
 ## 🎯 Features
 
 - **Modern React Frontend** with TailwindCSS
