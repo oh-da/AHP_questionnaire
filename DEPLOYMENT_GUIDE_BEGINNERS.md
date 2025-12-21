@@ -79,24 +79,28 @@ Railway will host your Python backend server.
 
 ### Step 1.3: Configure the Service
 
-Once the project is created:
+**Good news!** Railway should auto-detect your Python project using the configuration files in the repository (`railway.json`, `nixpacks.toml`, `runtime.txt`, `Procfile`).
+
+However, if you need to configure manually:
 
 1. **Click on the service** (should show your repo name)
 2. **Go to "Settings" tab**
-3. **Configure:**
+3. **Configure (only if auto-detection fails):**
 
    **Root Directory:**
    - Leave empty (we're at the root)
 
    **Build Command:**
-   - Click "Custom Build Command"
-   - Enter: `pip install -r requirements-backend.txt`
+   - Should auto-fill (from railway.json)
+   - If empty, enter: `pip install -r requirements-backend.txt`
 
    **Start Command:**
-   - Click "Custom Start Command"
-   - Enter: `python -m backend.main`
+   - Should auto-fill (from railway.json)
+   - If empty, enter: `python -m backend.main`
 
-4. **Click "Deploy"** at the top right
+4. **Railway will automatically deploy**
+
+**Note:** The repository includes configuration files that tell Railway how to build and run your app automatically!
 
 ### Step 1.4: Add Environment Variables
 
@@ -246,6 +250,49 @@ Vercel will host your React frontend.
 
 ### Backend Issues
 
+#### Issue: "pip: not found" or "pip: command not found"
+
+**Solution:**
+This means Railway didn't detect Python correctly. **Fix:**
+
+1. **Verify configuration files exist in your repository:**
+   - `runtime.txt` - Specifies Python version
+   - `railway.json` - Railway configuration
+   - `nixpacks.toml` - Build configuration
+   - `Procfile` - Start command
+
+2. **If files are missing, create them:**
+
+   **runtime.txt:**
+   ```
+   python-3.11.0
+   ```
+
+   **railway.json:**
+   ```json
+   {
+     "$schema": "https://railway.app/railway.schema.json",
+     "build": {
+       "builder": "NIXPACKS",
+       "buildCommand": "pip install -r requirements-backend.txt"
+     },
+     "deploy": {
+       "startCommand": "python -m backend.main",
+       "restartPolicyType": "ON_FAILURE",
+       "restartPolicyMaxRetries": 10
+     }
+   }
+   ```
+
+3. **Commit and push these files:**
+   ```bash
+   git add runtime.txt railway.json nixpacks.toml Procfile
+   git commit -m "Add Railway configuration files"
+   git push
+   ```
+
+4. **Railway will auto-redeploy** with correct Python setup
+
 #### Issue: "Application failed to respond"
 
 **Solution:**
@@ -255,6 +302,7 @@ Vercel will host your React frontend.
    - Verify `requirements-backend.txt` exists
    - Check start command: `python -m backend.main`
    - Ensure PORT=5000 is set
+   - Check that configuration files are present (see above)
 
 #### Issue: "Module not found"
 

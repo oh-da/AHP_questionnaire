@@ -1,0 +1,17 @@
+[build]
+builder = "NIXPACKS"
+
+[build.nixpacksPlan]
+providers = ["python"]
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["python311", "pip"]
+
+[build.nixpacksPlan.phases.install]
+cmds = ["pip install -r requirements-backend.txt"]
+
+[build.nixpacksPlan.phases.build]
+cmds = ["echo 'Build complete'"]
+
+[build.nixpacksPlan.start]
+cmd = "python -m backend.main"
