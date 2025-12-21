@@ -95,13 +95,16 @@ export default function AHPQuestionnaire() {
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">
+          <h1 className="text-4xl font-bold text-slate-900 mb-4"
+            תעדוף מתח״מים
+            </div>h1>
+          <h2 className="text-4xl font-bold text-slate-900 mb-4">
             שאלון AHP
           </h1>
 
           {/* Subtitle */}
           <p className="text-slate-600 text-lg leading-relaxed max-w-xl mx-auto">
-            תנדוד קריטריונים באמצעות תהליך האירלוכיה האנליטית דרך השואלות זוגית
+            הענקת משקל לקריטריונים על בסיס תהליך השוואת זוגות
           </p>
         </div>
 
